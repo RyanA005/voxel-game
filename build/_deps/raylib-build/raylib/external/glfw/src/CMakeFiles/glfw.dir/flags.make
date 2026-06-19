@@ -6,5 +6,5 @@ C_DEFINES = -DUNICODE -DWINVER=0x0501 -D_GLFW_WIN32 -D_UNICODE
 
 C_INCLUDES = @CMakeFiles/glfw.dir/includes_C.rsp
 
-C_FLAGS = -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 "$$<1:-O3" -ffast-math "-march=native>" "$$<0:-O3" -Wall
+C_FLAGS = -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -Wall
 

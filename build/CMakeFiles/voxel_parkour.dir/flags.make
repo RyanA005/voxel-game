@@ -6,5 +6,5 @@ C_DEFINES = -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP
 
 C_INCLUDES = @CMakeFiles/voxel_parkour.dir/includes_C.rsp
 
-C_FLAGS = -O3 -DNDEBUG -std=gnu99 "$$<1:-O3" -ffast-math "-march=native>" "$$<0:-O3"
+C_FLAGS = -O3 -DNDEBUG -std=gnu99 -O3 -ffast-math -fno-math-errno
 
