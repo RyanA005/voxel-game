@@ -269,6 +269,126 @@ main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/main.c.s
 .PHONY : main.c.s
 
+neural.obj: neural.c.obj
+.PHONY : neural.obj
+
+# target to build an object file
+neural.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/neural.c.obj
+.PHONY : neural.c.obj
+
+neural.i: neural.c.i
+.PHONY : neural.i
+
+# target to preprocess a source file
+neural.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/neural.c.i
+.PHONY : neural.c.i
+
+neural.s: neural.c.s
+.PHONY : neural.s
+
+# target to generate assembly for a file
+neural.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/neural.c.s
+.PHONY : neural.c.s
+
+observation.obj: observation.c.obj
+.PHONY : observation.obj
+
+# target to build an object file
+observation.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/observation.c.obj
+.PHONY : observation.c.obj
+
+observation.i: observation.c.i
+.PHONY : observation.i
+
+# target to preprocess a source file
+observation.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/observation.c.i
+.PHONY : observation.c.i
+
+observation.s: observation.c.s
+.PHONY : observation.s
+
+# target to generate assembly for a file
+observation.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/observation.c.s
+.PHONY : observation.c.s
+
+physics.obj: physics.c.obj
+.PHONY : physics.obj
+
+# target to build an object file
+physics.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/physics.c.obj
+.PHONY : physics.c.obj
+
+physics.i: physics.c.i
+.PHONY : physics.i
+
+# target to preprocess a source file
+physics.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/physics.c.i
+.PHONY : physics.c.i
+
+physics.s: physics.c.s
+.PHONY : physics.s
+
+# target to generate assembly for a file
+physics.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/physics.c.s
+.PHONY : physics.c.s
+
+sim.obj: sim.c.obj
+.PHONY : sim.obj
+
+# target to build an object file
+sim.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/sim.c.obj
+.PHONY : sim.c.obj
+
+sim.i: sim.c.i
+.PHONY : sim.i
+
+# target to preprocess a source file
+sim.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/sim.c.i
+.PHONY : sim.c.i
+
+sim.s: sim.c.s
+.PHONY : sim.s
+
+# target to generate assembly for a file
+sim.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/sim.c.s
+.PHONY : sim.c.s
+
+world.obj: world.c.obj
+.PHONY : world.obj
+
+# target to build an object file
+world.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/world.c.obj
+.PHONY : world.c.obj
+
+world.i: world.c.i
+.PHONY : world.i
+
+# target to preprocess a source file
+world.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/world.c.i
+.PHONY : world.c.i
+
+world.s: world.c.s
+.PHONY : world.s
+
+# target to generate assembly for a file
+world.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\voxel_parkour.dir\build.make CMakeFiles/voxel_parkour.dir/world.c.s
+.PHONY : world.c.s
+
 # Help Target
 help:
 	@echo The following are some of the valid targets for this Makefile:
@@ -291,6 +411,21 @@ help:
 	@echo ... main.obj
 	@echo ... main.i
 	@echo ... main.s
+	@echo ... neural.obj
+	@echo ... neural.i
+	@echo ... neural.s
+	@echo ... observation.obj
+	@echo ... observation.i
+	@echo ... observation.s
+	@echo ... physics.obj
+	@echo ... physics.i
+	@echo ... physics.s
+	@echo ... sim.obj
+	@echo ... sim.i
+	@echo ... sim.s
+	@echo ... world.obj
+	@echo ... world.i
+	@echo ... world.s
 .PHONY : help
 
 
