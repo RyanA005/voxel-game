@@ -1,3 +1,0 @@
-"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\voxel_parkour.dir/objects.a
-C:\mingw64\bin\ar.exe qc CMakeFiles\voxel_parkour.dir/objects.a @CMakeFiles\voxel_parkour.dir\objects1.rsp
-C:\mingw64\bin\gcc.exe -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles\voxel_parkour.dir/objects.a -Wl,--no-whole-archive -o voxel_parkour.exe -Wl,--out-implib,libvoxel_parkour.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\voxel_parkour.dir\linkLibs.rsp
