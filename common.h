@@ -15,17 +15,17 @@
 #define GRAVITY -30.0f
 #define JUMP_SPEED 10.0f
 
-#define PATCH_R 1
-#define PATCH_D 3
+#define PATCH_R 4
+#define PATCH_D 9
 #define VOXEL_COUNT (PATCH_D * PATCH_D * PATCH_D)
 
-#define INPUT_DIM (VOXEL_COUNT + 12)
+#define INPUT_DIM 741
 #define OUTPUT_DIM 7
+#define HIDDEN1 128
+#define HIDDEN2 128
 
 #define DATASET_MAGIC 0x4B435056u /* VPCK */
 #define MODEL_MAGIC 0x214D4C50u   /* MLP! */
-#define MODEL_VER_FLOAT 1
-#define MODEL_VER_INT8  2
 
 typedef enum {
     VOXEL_EMPTY = 0,
@@ -74,7 +74,7 @@ typedef struct {
 #pragma pack(push, 1)
 #endif
 typedef struct {
-    unsigned char voxels[VOXEL_COUNT];
+    unsigned char voxels[729];
     float offset[3];
     float vel[3];
     uint8_t grounded;

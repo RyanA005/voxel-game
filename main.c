@@ -11,28 +11,7 @@
 #include <time.h>
 
 static PhysicsMode physics_mode = PHYSICS_ANALYTIC;
-static const char *model_path = "models/model_q8_h24_p3.bin";
-
-static int try_load_model(void) {
-    const char *candidates[] = {
-        "models/model_q8_h24_p3.bin",
-        "../models/model_q8_h24_p3.bin",
-        "models/model_q8_h48x24_p3.bin",
-        "../models/model_q8_h48x24_p3.bin",
-        "models/model_q8_h64_p3.bin",
-        "../models/model_q8_h64_p3.bin",
-        "models/model_q8_h48_p3.bin",
-        "../models/model_q8_h48_p3.bin",
-        NULL
-    };
-    for (int i = 0; candidates[i]; i++) {
-        if (neural_load_model(candidates[i])) {
-            model_path = candidates[i];
-            return 1;
-        }
-    }
-    return 0;
-}
+static const char *model_path = "models/model.bin";
 
 static Color voxel_color(unsigned char t) {
     switch (t) {
@@ -87,27 +66,6 @@ static InputState read_input(void) {
     return in;
 }
 
-static void check_goal(void) {
-    int gx = (int)goal_pos.x;
-    int gy = (int)goal_pos.y;
-    int gz = (int)goal_pos.z;
-
-    float min_x = player.pos.x - player.width * 0.5f;
-    float max_x = player.pos.x + player.width * 0.5f;
-    float min_y = player.pos.y - player.height * 0.5f;
-    float max_y = player.pos.y + player.height * 0.5f;
-    float min_z = player.pos.z - player.width * 0.5f;
-    float max_z = player.pos.z + player.width * 0.5f;
-
-    if (gx + 0.5f >= min_x && gx + 0.5f <= max_x &&
-        gy + 0.5f >= min_y && gy + 0.5f <= max_y &&
-        gz + 0.5f >= min_z && gz + 0.5f <= max_z) {
-        player.won = 1;
-        generate_world();
-        reset_player();
-    }
-}
-
 static void print_usage(const char *prog) {
     printf("Usage:\n");
     printf("  %s                         Interactive game (Tab toggles neural/analytic)\n", prog);
@@ -151,8 +109,11 @@ int main(int argc, char **argv) {
     }
 
     if (bench_model) {
+        neural_require_model(bench_model);
         return sim_benchmark(bench_model, 300, 50, 42);
     }
+
+    neural_require_model(model_path);
 
     InitWindow(1280, 720, "Neural Voxel Parkour");
     SetTargetFPS(60);
@@ -161,21 +122,17 @@ int main(int argc, char **argv) {
     srand((int)map_seed);
     generate_world();
     reset_player();
-
-    if (try_load_model())
-        physics_mode = PHYSICS_NEURAL;
+    physics_mode = PHYSICS_NEURAL;
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_ESCAPE)) break;
 
         if (IsKeyPressed(KEY_TAB)) {
             physics_mode = physics_mode == PHYSICS_ANALYTIC ? PHYSICS_NEURAL : PHYSICS_ANALYTIC;
-            if (physics_mode == PHYSICS_NEURAL && !neural_model_loaded())
-                try_load_model();
         }
 
         if (IsKeyPressed(KEY_N))
-            try_load_model();
+            neural_require_model(model_path);
 
         float dt = FIXED_DT;
 
@@ -188,10 +145,15 @@ int main(int argc, char **argv) {
             reset_player();
         }
 
+        Player before = player;
         if (physics_mode == PHYSICS_ANALYTIC)
             physics_step(&player, input, dt);
         else
             neural_physics_step(&player, input, dt);
+        Player after = player;
+
+        (void)before;
+        (void)after;
 
         if (player.pos.y < -4.0f)
             reset_player();
@@ -212,7 +174,6 @@ int main(int argc, char **argv) {
         DrawText(TextFormat("Map seed: %u", map_seed), 20, 45, 20, DARKGRAY);
         DrawText(TextFormat("Physics: %s", physics_mode == PHYSICS_NEURAL ? "NEURAL" : "ANALYTIC"),
                  20, 70, 20, physics_mode == PHYSICS_NEURAL ? GREEN : DARKGRAY);
-        DrawText(TextFormat("Model: %s", model_path), 20, 95, 20, DARKGRAY);
 
         EndDrawing();
     }

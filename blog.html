@@ -221,7 +221,6 @@
       <span class="tag">raylib</span>
       <span class="tag">physics</span>
       <span class="tag">machine learning</span>
-      <span class="tag">cursor</span>
     </div>
 
     <h2>the idea</h2>
@@ -243,24 +242,11 @@
 
     <p>
       Target accuracy is at least 98% one-step grounded agreement on held-out data.
-      Every model we kept clears that bar. The harder metric is rollout: run the network
-      for hundreds of ticks and compare to analytic physics. That is what you feel
-      in-game as drift, jitter, and phasing through voxels.
-    </p>
-
-    <p>
-      The current default is <code>model_q8_h24_p3.bin</code>: 39 inputs (3x3x3 voxels
-      + 12 scalars), 24-neuron int8 MLP, ~0.95 us per neural step (~12x analytic at
-      ~0.08 us). It is not the fastest option we trained, but it is the most stable
-      on long runs among the models we still ship: ~89% rollout grounded agreement,
-      ~2.4% of airborne steps overlap solids (analytic: 0%).
-    </p>
-
-    <p>
-      Most of the code — C inference, training pipeline, benchmarks, int8 export — was
-      built in one afternoon with Cursor agents from a written spec. See
-      <em>implementation</em> and <em>building with cursor</em> below for file layout,
-      the record→train→bench loop, and what made iteration fast.
+      The current default model (<code>model_q8_h24_p3.bin</code>) hits that at
+      ~1.3 us per neural step, about 16x slower than analytic at ~0.08 us. We pick
+      h24 not because it is the fastest, but because it holds ~89% rollout grounded
+      agreement over 50 episodes x 300 steps. Smaller models get under 1 us but drift
+      faster in multi-step play.
     </p>
 
     <hr>
@@ -299,10 +285,12 @@
       paths share the same game loop:
     </p>
 
-    <pre><code>if (physics_mode == PHYSICS_ANALYTIC)
+    <pre><code>Player before = player;
+if (physics_mode == PHYSICS_ANALYTIC)
     physics_step(&amp;player, input, dt);
 else
-    neural_physics_step(&amp;player, input, dt);</code></pre>
+    neural_physics_step(&amp;player, input, dt);
+Player after = player;</code></pre>
 
     <p>
       The analytic engine is the teacher. During data collection it records paired
@@ -315,397 +303,6 @@ else
       Training uses pytorch; inference uses exported float or int8 weights with
       per-row scale factors.
     </p>
-
-    <hr>
-
-    <h2>implementation</h2>
-
-    <p>
-      The repo is plain C99 + raylib, CMake, and a small Python training script.
-      No engine, no ECS, no runtime ML dependencies. The whole project is small enough
-      to hold in your head: seven C files, one header of shared constants, two Python tools.
-    </p>
-
-    <h3>code layout</h3>
-
-    <table>
-      <thead>
-        <tr><th>file</th><th>role</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>main.c</code></td><td>raylib loop, input, Tab toggle, model load order</td></tr>
-        <tr><td><code>physics.c</code></td><td>analytic teacher: accel, friction, gravity, axis AABB collision</td></tr>
-        <tr><td><code>world.c</code></td><td>16³ voxel grid, procedural map, player spawn nudge</td></tr>
-        <tr><td><code>observation.c</code></td><td>3³ patch around player, feature packing for train + inference</td></tr>
-        <tr><td><code>neural.c</code></td><td>binary model load, int8/float forward pass, AVX2 matmul, <code>neural_physics_step()</code></td></tr>
-        <tr><td><code>sim.c</code></td><td>headless dataset recorder, rollout benchmark vs analytic</td></tr>
-        <tr><td><code>common.h</code></td><td><code>PATCH_D</code>, <code>INPUT_DIM</code>, packed <code>TrainingRecord</code>, model magic bytes</td></tr>
-        <tr><td><code>tools/train.py</code></td><td>load dataset, train MLP, fuse norm, export int8/float <code>.bin</code></td></tr>
-      </tbody>
-    </table>
-
-    <h3>closed loop</h3>
-
-    <p>
-      Everything hangs off one pipeline. Same binary, different CLI flags:
-    </p>
-
-    <pre><code># 1. record 500k one-step transitions from analytic physics (headless, ~seconds)
-./voxel_parkour.exe --record 500000 --out data/train.bin
-
-# 2. train + export int8 models (~12 min stable sweep on CPU)
-python tools/train.py --sweep-stable --epochs 40
-
-# 3. measure rollout + latency vs analytic
-./voxel_parkour.exe --bench models/model_q8_h24_p3.bin
-
-# 4. play, toggle mid-game
-./voxel_parkour.exe</code></pre>
-
-    <p>
-      Recording never opens a window. It runs the same <code>physics_step()</code> as the
-      game, writes fixed-size rows to disk, and rotates maps when the player falls or
-      an episode hits 400 steps. Training reads those rows, holds out 20% of map seeds
-      for validation, and exports weights the C loader understands.
-    </p>
-
-    <h3>observation format</h3>
-
-    <p>
-      Each training row is 90 bytes, packed to match C struct layout exactly:
-    </p>
-
-    <ul>
-      <li><strong>27 bytes</strong> — voxel types in the 3³ neighborhood (0=empty, 1=solid, …)</li>
-      <li><strong>12 bytes</strong> — sub-voxel offset (3 floats)</li>
-      <li><strong>12 bytes</strong> — velocity before the step</li>
-      <li><strong>6 bytes</strong> — grounded flag + 5 input buttons</li>
-      <li><strong>4 bytes</strong> — fixed dt (1/60)</li>
-      <li><strong>25 bytes</strong> — analytic targets: Δpos, next vel, next grounded</li>
-      <li><strong>4 bytes</strong> — map seed (for train/val split)</li>
-    </ul>
-
-    <p>
-      At inference, <code>pack_player_features()</code> builds the same 39-float input
-      vector the trainer sees: voxels / 4, offsets, normalized vel, grounded, one-hot
-      inputs. Train/serve skew here would show up immediately as rollout drift, so the
-      packing path is shared logic duplicated once in C (not two different codepaths).
-    </p>
-
-    <h3>model binary format</h3>
-
-    <p>
-      Shipped models are int8 v2 blobs (~1–4 KB). Header: magic <code>MLP!</code>, version,
-      four ints (input_dim, h1, h2, output_dim). Weights are per-row quantized int8
-      with float scales; biases are pre-fused with input/output normalization at export
-      time so inference never touches mean/std arrays. Forward pass: int8 matmul →
-      scale → ReLU → int8 matmul → scale → 7 outputs applied directly to player state.
-    </p>
-
-    <pre><code>void neural_physics_step(Player *p, InputState input, float dt) {
-    float in[INPUT_DIM], out[OUTPUT_DIM];
-    pack_player_features(p, input, in);
-    neural_forward(in, out);
-    p->pos.x += out[0];  p->pos.y += out[1];  p->pos.z += out[2];
-    p->vel.x = out[3];   p->vel.y = out[4];   p->vel.z = out[5];
-    p->grounded = out[6] >= 0.5f ? 1 : 0;
-}</code></pre>
-
-    <p>
-      AVX2 FMA kernels live only in <code>neural.c</code>. Applying <code>-march=native</code>
-      to the whole executable caused stack misalignment crashes in raylib's render path;
-      scoping SIMD to the inference translation unit fixed that.
-    </p>
-
-    <h3>benchmark modes</h3>
-
-    <p>
-      <code>--bench</code> runs 50 episodes × up to 300 steps. Each step: same random
-      input drives analytic and neural players in parallel from identical starting
-      state. We track mean position/velocity error, grounded mismatch %, and tunnel
-      count (neural AABB overlapping solids while airborne). That last metric matches
-      what you see as phasing in play.
-    </p>
-
-    <h3>analytic teacher (what the network imitates)</h3>
-
-    <p>
-      The teacher is deliberately boring: axis-separated AABB collision against a
-      16×16×16 voxel grid, no rotation, no swept tests. Each frame applies input
-      acceleration, horizontal friction, speed clamp, optional jump, gravity, then
-      moves X → Y → Z independently — if a move collides, snap back and zero velocity
-      on that axis. Landing on Y sets <code>grounded = 1</code>.
-    </p>
-
-    <pre><code>void physics_step(Player *p, InputState input, float dt) {
-    /* accel + friction + jump + gravity */
-    p->grounded = 0;
-    move_axis(p, 0, p->vel.x * dt);  /* X, then Y, then Z */
-    move_axis(p, 1, p->vel.y * dt);
-    move_axis(p, 2, p->vel.z * dt);
-}</code></pre>
-
-    <p>
-      Recording snapshots the player <em>before</em> the step, runs
-      <code>physics_step()</code>, snapshots <em>after</em>, and writes the delta as
-      training targets. The network never sees collision resolution code — it learns
-      the end-to-end mapping from local geometry + state to the teacher's outcome.
-    </p>
-
-    <h3>training and export</h3>
-
-    <p>
-      <code>train.py</code> loads the binary dataset with numpy struct unpacking
-      (one <code>frombuffer</code> pass over 500k rows, not a Python loop per sample).
-      Map seeds split train/val 80/20 so the network generalizes across procedural
-      layouts, not just held-out frames from the same map.
-    </p>
-
-    <p>
-      The MLP is a plain two-layer ReLU net in PyTorch: 39 → h → 7. After training,
-      <code>fuse_weights()</code> bakes input/output z-score normalization into the
-      first and last layer so C inference never loads mean/std arrays:
-    </p>
-
-    <pre><code>w1 = w1 / x_std;  b1 = b1 - w1 @ x_mean   # input norm → layer 1
-w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code></pre>
-
-    <p>
-      int8 export quantizes each weight row independently (per-row scale, max abs → 127).
-      Biases stay float32. The C loader reads magic <code>MLP!</code>, dims, packed int8
-      weights + scales, and runs the same graph as PyTorch at eval time — within
-      quantization error. Sweep flags train multiple hidden widths in one invocation,
-      reusing the cached dataset between models.
-    </p>
-
-    <h3>build and entry points</h3>
-
-    <p>
-      CMake fetches raylib 5.5, builds one executable with Release defaults
-      (<code>-O3 -ffast-math</code>). AVX2/FMA flags apply only to <code>neural.c</code>
-      — not the whole binary. Same exe, four modes:
-    </p>
-
-    <table>
-      <thead>
-        <tr><th>flag</th><th>behavior</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>(none)</code></td><td>raylib game, Tab toggles analytic/neural, N reloads model</td></tr>
-        <tr><td><code>--record N --out path</code></td><td>headless, writes N rows to <code>train.bin</code></td></tr>
-        <tr><td><code>--bench model.bin</code></td><td>headless rollout + forward-pass timing vs analytic</td></tr>
-      </tbody>
-    </table>
-
-    <p>
-      Model load tries several relative paths (<code>models/…</code>,
-      <code>../models/…</code>) so the same binary works from repo root or
-      <code>build/</code>. Default search order prefers h24, then h48×24, h64, h48.
-    </p>
-
-    <hr>
-
-    <h2>building with cursor</h2>
-
-    <p>
-      I did not hand-write most of this. I wrote <code>spec.md</code> — constraints,
-      data formats, accuracy floor, swap interface — and drove the implementation
-      through Cursor agents in a single long session over one day. My job was picking
-      tradeoffs and reading benchmark output; the agent's job was generating code,
-      running builds, fixing compile errors, and iterating until the numbers moved.
-    </p>
-
-    <h3>why this project fits agents well</h3>
-
-    <ul>
-      <li><strong>Closed loop with objective metrics.</strong> Record, train, bench, play. Every hypothesis ends in a number: microseconds, grounded %, tunnel count. Agents can run the loop without me context-switching into five tools.</li>
-      <li><strong>Small surface area.</strong> ~2k lines of C, one MLP, one training script. Fits in context. Refactors don't require understanding a whole engine.</li>
-      <li><strong>Spec as source of truth.</strong> Fixed dt, no pytorch at runtime, 98% one-step floor, binary export format — agents had concrete acceptance criteria instead of "make it feel good."</li>
-      <li><strong>Embarrassingly parallel experiments.</strong> "Try 7³ patch." "Add int8 export." "Sweep h12–h32." Each is a prompt + a bench run, not a week of manual porting.</li>
-    </ul>
-
-    <h3>spec.md as the contract</h3>
-
-    <p>
-      Before any code landed, I wrote a spec: observation layout, record format,
-      model binary layout, accuracy floor, swap interface. That file became the
-      agent's acceptance test. When rollout looked bad, I didn't argue about feel —
-      I pointed at spec constraints ("no analytic fallback at runtime") and asked
-      for new metrics. When the agent added collision fallback to hide drift, I
-      rejected it against the spec and the real problem surfaced.
-    </p>
-
-    <p>
-      Concrete fields in the spec — 90-byte rows, 7-float outputs, fixed 1/60 dt —
-      meant the agent could generate matching C structs, Python loaders, and export
-      code in one pass without me hand-aligning offsets.
-    </p>
-
-    <h3>prompts that actually moved the needle</h3>
-
-    <p>
-      Short, outcome-oriented prompts worked best. The agent had shell access, so
-      "make it faster" became "Release build, fuse norm, re-bench" in one turn.
-      Examples, paraphrased from the session:
-    </p>
-
-    <ul>
-      <li><em>"Implement the full pipeline from spec.md: record mode, train.py, C inference, Tab toggle."</em> — greenfield in ~2 hours of agent time.</li>
-      <li><em>"305 µs is too slow. Optimize inference without changing accuracy."</em> — Release flags, fused norm, single-pass pack; ~50× in one iteration.</li>
-      <li><em>"Try shrinking the patch to 7³, then 3³. Sweep and bench each."</em> — touched <code>common.h</code>, crop logic, re-export, full metric table.</li>
-      <li><em>"Remove analytic fallback — pure neural only."</em> — one function edit, rollout truth exposed.</li>
-      <li><em>"Training sweep takes forever. Vectorize the loader."</em> — 500k-row parse dropped from minutes to 0.3 s.</li>
-      <li><em>"Game segfaults on launch after AVX."</em> — gdb trace, scoped SIMD to <code>neural.c</code>, no raylib rabbit hole.</li>
-      <li><em>"Bench numbers don't match playtesting."</em> — found <code>sample_in[729]</code> overflow in timing loop.</li>
-    </ul>
-
-    <p>
-      I rarely pasted stack traces or file paths. The agent searched the repo,
-      ran commands, and reported numbers back. My input was mostly constraints and
-      yes/no on tradeoffs.
-    </p>
-
-    <h3>what a typical iteration looked like</h3>
-
-    <p>
-      Prompt → agent edits C/Python/CMake → agent runs <code>cmake --build</code> →
-      agent runs <code>--bench</code> or <code>train.py --sweep</code> → I read the
-      table → next prompt. Examples from this project:
-    </p>
-
-    <div class="checkpoint">
-      <div class="checkpoint-title">305 µs → 6 µs (first big win)</div>
-      <p>
-        First neural build was Debug, unoptimized, with runtime normalization passes.
-        One prompt: Release flags, fuse norm into weights, single-pass feature pack.
-        Agent rebuilt, re-benched. ~50× faster in one turn. I didn't profile manually —
-        the agent ran the before/after.
-      </p>
-    </div>
-
-    <div class="checkpoint">
-      <div class="checkpoint-title">741 → 39 inputs (patch shrink)</div>
-      <p>
-        I asked to try 7³, then 3³. Agent updated <code>common.h</code>, crop logic in
-        <code>train.py</code>, re-exported models, updated load order in <code>main.c</code>,
-        ran the sweep. Entire patch-size pivot in one conversation thread without me
-        touching individual files.
-      </p>
-    </div>
-
-    <div class="checkpoint">
-      <div class="checkpoint-title">segfault on launch</div>
-      <p>
-        Game crashed intermittently after adding global AVX flags. Agent bisected with
-        gdb, found crash at <code>BeginDrawing</code>, traced to stack misalignment from
-        <code>-march=native</code> on <code>main.c</code>, scoped AVX to <code>neural.c</code>
-        only. I would have blamed raylib for hours.
-      </p>
-    </div>
-
-    <div class="checkpoint">
-      <div class="checkpoint-title">training felt like 50 minutes</div>
-      <p>
-        First training script parsed 500k rows in a Python loop, reloaded the dataset
-        four times per sweep. Agent vectorized loading (~0.3 s), cached data across
-        models, bumped batch size, added ETA logging. Stable sweep dropped to ~13 min
-        on CPU with visible progress each epoch.
-      </p>
-    </div>
-
-    <div class="checkpoint">
-      <div class="checkpoint-title">benchmark lied (buffer overflow)</div>
-      <p>
-        Early 3³ benches reported suspiciously good numbers. Agent found
-        <code>sample_in[729]</code> writing past a 39-element array in <code>sim.c</code>
-        during forward-pass timing. One-line fix, re-benched, rollout numbers finally
-        matched playtesting (phasing, drift).
-      </p>
-    </div>
-
-    <h3>what I still had to do</h3>
-
-    <p>
-      Agents are fast at implementation; they don't replace judgment calls:
-    </p>
-
-    <ul>
-      <li><strong>Remove analytic fallback</strong> — agent added collision fallback when rollout looked bad. I said no: pure neural or nothing. That made the real rollout problem visible.</li>
-      <li><strong>Pick the default model</strong> — h12 is fastest; h24 is most stable on long runs. Agent would have kept optimizing latency; I chose rollout over raw µs.</li>
-      <li><strong>Native 3³ re-record</strong> — cropping center 3³ from old 9³ data was a hack. I asked for honest recording at PATCH_D=3. Accuracy similar, rollout different, old weights discarded.</li>
-      <li><strong>Read the game</strong> — benches don't capture feel. I playtested, reported phasing, agent updated the blog and pointed at tunnel metrics. Subjective + objective together.</li>
-    </ul>
-
-    <h3>iteration speed (rough)</h3>
-
-    <table>
-      <thead>
-        <tr><th>task</th><th class="num">wall time</th><th>who</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>initial game + analytic physics + recorder</td><td class="num">~1 hr</td><td>agent (from spec)</td></tr>
-        <tr><td>pytorch train + float export + C inference</td><td class="num">~1 hr</td><td>agent</td></tr>
-        <tr><td>Release + AVX + int8 + patch sweeps (9³→7³→3³)</td><td class="num">~2 hr</td><td>agent + my bench reviews</td></tr>
-        <tr><td>500k sample re-record (native 3³)</td><td class="num">&lt;5 sec</td><td>agent runs exe</td></tr>
-        <tr><td>int8 stable sweep (4 models, 40 epochs)</td><td class="num">~13 min</td><td>agent runs train.py</td></tr>
-        <tr><td>debug segfault / bench overflow / train loader</td><td class="num">~30 min each</td><td>agent diagnose + fix</td></tr>
-        <tr><td>blog + benchmark docs</td><td class="num">~20 min</td><td>agent draft, I correct metrics</td></tr>
-      </tbody>
-    </table>
-
-    <h3>where time actually goes</h3>
-
-    <p>
-      Cursor compresses <em>typing and glue</em>, not GPU/CPU training. A typical
-      experiment loop:
-    </p>
-
-    <ul>
-      <li><strong>~30 sec</strong> — agent edits 2–5 files, rebuilds Release binary</li>
-      <li><strong>&lt;5 sec</strong> — re-record 500k rows if observation shape changed</li>
-      <li><strong>~13 min</strong> — train + export 4 int8 variants (the real bottleneck)</li>
-      <li><strong>~10 sec</strong> — bench all models, paste comparison table</li>
-      <li><strong>~2 min</strong> — me: read table, pick next hypothesis, send one prompt</li>
-    </ul>
-
-    <p>
-      Nine patch/architecture pivots in one afternoon is feasible because steps 1, 2,
-      4, and 5 are agent-owned. I was never waiting on me to write matmul kernels or
-      debug CMake. I <em>was</em> waiting on epoch 37 of four parallel MLPs — but
-      that runs unattended while the agent logs ETA.
-    </p>
-
-    <p>
-      Compare to solo dev without an agent: same afternoon might cover "get pytorch
-      export matching C struct layout" and one broken bench run. Here that was the
-      first hour, and the rest was optimization and experimentation.
-    </p>
-
-    <h3>human vs agent split</h3>
-
-    <table>
-      <thead>
-        <tr><th>agent owned</th><th>I owned</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>C/Python/CMake edits, SIMD kernels, binary I/O</td><td>spec constraints, accuracy vs latency tradeoffs</td></tr>
-        <tr><td><code>cmake --build</code>, <code>--record</code>, <code>--bench</code>, sweeps</td><td>rejecting analytic fallback, picking h24 default</td></tr>
-        <tr><td>gdb segfault bisect, buffer overflow find</td><td>playtesting feel, calling out phasing</td></tr>
-        <tr><td>blog drafts, metric tables, reproduce commands</td><td>correcting one-step vs rollout confusion</td></tr>
-      </tbody>
-    </table>
-
-    <p>
-      End-to-end from empty repo to playable neural swap with documented benchmarks:
-      <em>one afternoon</em>. Without Cursor that is easily a week of setup, training
-      pipeline boilerplate, and inference export glue — work I didn't want to write by hand.
-    </p>
-
-    <div class="callout">
-      the pattern: write a tight spec, keep the feedback loop machine-runnable, let the
-      agent own everything between "change PATCH_D to 3" and "here are the new bench numbers."
-      I stay in the loop for constraints and tradeoffs, not for typing matmul kernels.
-    </div>
 
     <hr>
 
@@ -722,84 +319,16 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
       <li><strong>Analytic teacher.</strong> <code>physics_step()</code> generates labels. The network learns to imitate it, not invent its own physics.</li>
       <li><strong>One-step supervision.</strong> Train on single-tick transitions. Rollout drift is measured separately; it now drives default model selection, not just diagnostics.</li>
       <li><strong>Swappable call site.</strong> Same game loop, same inputs, same observation packing. Only the step function changes.</li>
-      <li><strong>No collision correction at runtime.</strong> The network sets position and velocity directly. There is no analytic fallback. Small per-frame errors compound; the player can end up inside voxels.</li>
-      <li><strong>98% grounded floor (one-step).</strong> Any model below that on held-out validation is rejected. Rollout stability is a separate, harder filter for picking the default.</li>
+      <li><strong>98% grounded floor.</strong> Added later when pushing speed. Any model below that threshold is rejected regardless of latency.</li>
     </ul>
 
     <p>
-      Full writeup of the original spec lives in <code>spec.md</code> in the repo.
-      See <em>building with cursor</em> above for how those constraints were enforced
-      in practice.
+      I wrote the spec and directed the work through Cursor. The implementation,
+      optimization passes, training pipeline, int8 export, and most of the C inference
+      code were generated and iterated by Cursor agents from my prompts. I reviewed
+      benchmarks at each checkpoint, chose when to shrink the observation patch,
+      and set the accuracy vs latency vs rollout tradeoffs.
     </p>
-
-    <hr>
-
-    <h2>current models</h2>
-
-    <p>
-      Four int8 models remain in <code>models/</code>. All use native 3x3 observations
-      (500k recorded samples, 90-byte rows). Older 7x7, 9x9, float, and speed-ladder
-      (h12/h16/h32) checkpoints were removed after rollout testing.
-    </p>
-
-    <table>
-      <thead>
-        <tr>
-          <th>file</th>
-          <th class="num">hidden</th>
-          <th class="num">one-step</th>
-          <th class="num">rollout</th>
-          <th class="num">tunnel*</th>
-          <th class="num">step</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="highlight">
-          <td><code>model_q8_h24_p3.bin</code> default</td>
-          <td class="num">24</td>
-          <td class="num">98.7%</td>
-          <td class="num">~89%</td>
-          <td class="num">~2.4%</td>
-          <td class="num">~0.95 us</td>
-        </tr>
-        <tr>
-          <td><code>model_q8_h48_p3.bin</code></td>
-          <td class="num">48</td>
-          <td class="num">98.7%</td>
-          <td class="num">~80%</td>
-          <td class="num">~2.8%</td>
-          <td class="num">~1.8 us</td>
-        </tr>
-        <tr>
-          <td><code>model_q8_h64_p3.bin</code></td>
-          <td class="num">64</td>
-          <td class="num">98.7%</td>
-          <td class="num">~73%</td>
-          <td class="num">~2.7%</td>
-          <td class="num">~2.9 us</td>
-        </tr>
-        <tr>
-          <td><code>model_q8_h48x24_p3.bin</code></td>
-          <td class="num">48x24</td>
-          <td class="num">98.7%</td>
-          <td class="num">~78%</td>
-          <td class="num">~3.2%</td>
-          <td class="num">~2.4 us</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p>
-      <em>*tunnel = fraction of steps where the neural player overlaps solid voxels while
-      not grounded. Analytic physics: 0%. Measured on 50 episodes x up to 300 steps with
-      <code>--bench</code>.</em>
-    </p>
-
-    <div class="callout">
-      one-step % = held-out validation, single frame. rollout % = 100 minus grounded
-      mismatch over long parallel runs vs analytic. They are not the same number; early
-      blog drafts conflated them.
-    </div>
 
     <hr>
 
@@ -998,9 +527,8 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
       <div class="checkpoint-title">checkpoint 6: rollout-stable models (current default)</div>
       <p><strong>Input:</strong> 39 dims (27 voxels + 12 scalars)</p>
       <p><strong>Models kept:</strong> h24, h48, h64, h48x24 int8 on 3x3 patch</p>
-      <p><strong>Default:</strong> model_q8_h24_p3.bin (~0.95 us, ~89% rollout grounded)</p>
+      <p><strong>Default:</strong> model_q8_h24_p3.bin (~1.3 us, ~89% rollout grounded)</p>
       <p><strong>One-step accuracy:</strong> 98.65% to 98.74% grounded on kept models</p>
-      <p><strong>Playtest reality:</strong> ~2.4% of airborne benchmark steps still overlap solids (293 / 12408). You can feel this as occasional phasing. Analytic: 0 overlaps.</p>
 
       <h4>assumption</h4>
       <p>
@@ -1023,10 +551,8 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
       <p>
         Bigger is not always better. h48x24 (two-layer) hits 98.74% one-step but only
         ~78% rollout. h64 is ~73% rollout at ~2.8 us. h48 is ~80% at ~2.4 us.
-        h24 stays the default: ~89% rollout, ~0.95 us, 98.67% one-step. Still ~12x
-        analytic. Wider models (h48, h64, 48x24) did not improve rollout; a 5x5 patch
-        re-record and retrain also lost to h24 on 3x3. The remaining gap is structural:
-        open-loop prediction with no post-step collision fix.
+        h24 stays the default: ~89% rollout, ~1.3 us, 98.67% one-step. Still ~16x
+        analytic, but stable enough to swap mid-game without immediate tunneling.
       </p>
     </div>
 
@@ -1039,21 +565,16 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
     </p>
 
     <ul>
-      <li><strong>pack_player_features():</strong> 27 voxel lookups + 12 scalar writes.</li>
-      <li><strong>Layer 1 (39 -> 24 int8):</strong> 936 int8 multiply-adds with per-row scale. Dominates forward pass (~0.76 us).</li>
+      <li><strong>pack_player_features():</strong> 27 voxel lookups + 12 scalar writes. Non-trivial but smaller than layer 1 matmul.</li>
+      <li><strong>Layer 1 (39 -> 24 int8):</strong> 936 int8 multiply-adds with per-row scale. Dominates forward pass.</li>
       <li><strong>Layer 2 (24 -> 7 int8):</strong> 168 multiply-adds. Minor.</li>
-      <li><strong>State apply:</strong> write pos delta, velocity, grounded flag. No collision pass.</li>
+      <li><strong>State apply:</strong> write pos delta, velocity, grounded flag. Trivial.</li>
     </ul>
 
     <p>
-      AVX2 FMA lives only in <code>neural.c</code> (not whole-program <code>-march=native</code>);
-      global AVX flags caused stack misalignment crashes when calling raylib from <code>main</code>.
-    </p>
-
-    <p>
-      Compared to analytic (~0.08 us), the network still does hundreds of multiply-adds
-      per tick. We removed the speed-ladder models (h12/h16/h32) from disk; they were
-      faster on paper but worse on rollout.
+      Compared to analytic (~10 ops), the network still does hundreds of multiply-adds
+      per tick. h12 models cut that work roughly in half and land near 0.75 us, but
+      rollout stability dropped enough that we kept h24 as the default tradeoff.
     </p>
 
     <hr>
@@ -1067,7 +588,7 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
       </div>
       <div class="caption">
         each bar is a major checkpoint. total improvement from first neural model to
-        current default (h24): roughly 320x. h12 hit ~0.75 us but was dropped after rollout testing.
+        current default (h24): roughly 230x. h12 was faster (~0.75 us) but lost on rollout.
       </div>
     </div>
 
@@ -1091,7 +612,6 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
           <th class="num">neural step</th>
           <th class="num">one-step</th>
           <th class="num">rollout</th>
-          <th class="num">tunnel</th>
           <th class="num">vs analytic</th>
         </tr>
       </thead>
@@ -1103,7 +623,6 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
           <td class="num">~0.08 us</td>
           <td class="num">100%</td>
           <td class="num">100%</td>
-          <td class="num">0%</td>
           <td class="num">1x</td>
         </tr>
         <tr>
@@ -1112,7 +631,6 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
           <td class="num">128x128 f32</td>
           <td class="num">~305 us</td>
           <td class="num">99.2%</td>
-          <td class="num">-</td>
           <td class="num">-</td>
           <td class="num">~3800x</td>
         </tr>
@@ -1123,7 +641,6 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
           <td class="num">~6 us</td>
           <td class="num">99.1%</td>
           <td class="num">-</td>
-          <td class="num">-</td>
           <td class="num">~75x</td>
         </tr>
         <tr>
@@ -1133,58 +650,61 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
           <td class="num">~3.2 us</td>
           <td class="num">99.0%</td>
           <td class="num">-</td>
-          <td class="num">-</td>
           <td class="num">~40x</td>
         </tr>
         <tr>
-          <td>model_q8_h16 (7x7, removed)</td>
+          <td>model_q8_h16 (7x7)</td>
           <td class="num">355</td>
           <td class="num">16 int8</td>
           <td class="num">~2.1 us</td>
           <td class="num">98.8%</td>
           <td class="num">-</td>
-          <td class="num">-</td>
           <td class="num">~26x</td>
+        </tr>
+        <tr>
+          <td>model_q8_h12_p3 (speed ladder)</td>
+          <td class="num">39</td>
+          <td class="num">12 int8</td>
+          <td class="num">~0.75 us</td>
+          <td class="num">98.6%</td>
+          <td class="num">-</td>
+          <td class="num">~9x</td>
         </tr>
         <tr class="highlight">
           <td>model_q8_h24_p3 (default)</td>
           <td class="num">39</td>
           <td class="num">24 int8</td>
-          <td class="num">~0.95 us</td>
+          <td class="num">~1.3 us</td>
           <td class="num">98.7%</td>
           <td class="num">~89%</td>
-          <td class="num">~2.4%</td>
-          <td class="num">~12x</td>
+          <td class="num">~16x</td>
         </tr>
         <tr>
           <td>model_q8_h48_p3</td>
           <td class="num">39</td>
           <td class="num">48 int8</td>
-          <td class="num">~1.8 us</td>
+          <td class="num">~2.4 us</td>
           <td class="num">98.7%</td>
           <td class="num">~80%</td>
-          <td class="num">~2.8%</td>
-          <td class="num">~22x</td>
+          <td class="num">~30x</td>
         </tr>
         <tr>
           <td>model_q8_h64_p3</td>
           <td class="num">39</td>
           <td class="num">64 int8</td>
-          <td class="num">~2.9 us</td>
+          <td class="num">~2.8 us</td>
           <td class="num">98.7%</td>
           <td class="num">~73%</td>
-          <td class="num">~2.7%</td>
-          <td class="num">~36x</td>
+          <td class="num">~35x</td>
         </tr>
         <tr>
           <td>model_q8_h48x24_p3</td>
           <td class="num">39</td>
           <td class="num">48x24 int8</td>
-          <td class="num">~2.4 us</td>
+          <td class="num">~3.5 us</td>
           <td class="num">98.7%</td>
           <td class="num">~78%</td>
-          <td class="num">~3.2%</td>
-          <td class="num">~30x</td>
+          <td class="num">~44x</td>
         </tr>
       </tbody>
     </table>
@@ -1196,21 +716,11 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
     <h3>one-step accuracy lies</h3>
     <p>
       Every checkpoint looked fine on held-out one-step validation (98-99% grounded).
-      Early writeups sometimes reported those numbers as if they were long-run rollout
-      scores. They are not. Rollout benchmarks (50 episodes x 300 steps, analytic vs
-      neural in parallel) show ~89% grounded agreement for the default h24 model.
-      Errors compound: position drifts, the 3x3 patch sees the wrong voxels, and the
-      player phases through blocks (~2.4% of airborne steps in bench). Analytic physics
-      has zero such overlaps.
-    </p>
-
-    <h3>why old builds felt more stable</h3>
-    <p>
-      Crop-trained weights from the first 3x3 sweep are gone; we re-recorded native 3x3
-      data and retrained. One-step metrics stayed similar but rollout changed. There is
-      no analytic collision fallback (removed on purpose). If an older build felt smoother,
-      it may have been different weights, not a magic architecture change. The current
-      default is the best rollout model we still have on disk.
+      Rollout benchmarks told a different story: errors compound over hundreds of ticks
+      and the player eventually tunnels through voxels. h12 cleared the one-step floor
+      at ~0.75 us but was not stable enough for the default slot. We now pick models
+      on rollout grounded agreement (50 episodes x 300 steps vs analytic), with one-step
+      98% as a hard filter before rollout even runs.
     </p>
 
     <h3>patch size mattered more than hidden width</h3>
@@ -1224,24 +734,23 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
     <p>
       Release flags, fused normalization, single-pass feature packing, and int8
       export each gave meaningful gains alone. Stacked together they turned a
-      research prototype into something that runs at ~0.95 us (h24 default) without
+      research prototype into something that runs at ~1.3 us (h24 default) without
       changing the fundamental fact that matmul is slower than analytic collision code.
     </p>
 
-    <h3>bigger models do not fix rollout</h3>
+    <h3>bigger models do not always fix rollout</h3>
     <p>
-      h48, h64, and 48x24 all beat h24 on one-step metrics but score worse on rollout
-      and tunnel counts. A 5x5 patch experiment did not beat h24 on 3x3 either. More
-      neurons or context within this MLP formulation does not solve open-loop drift.
-      Next levers: multi-step training, or a minimal post-neural depenetration pass
-      (nudge out of solids without full analytic physics).
+      h48, h64, and a 48x24 two-layer MLP all beat h24 on one-step metrics but
+      scored worse on rollout. A 5x5 patch experiment did not beat h24 on 3x3 either.
+      Capacity and context help up to a point; the remaining drift likely needs
+      collision correction or residual learning, not just more neurons.
     </p>
 
     <h3>analytic will always win on raw speed</h3>
     <p>
       The goal was never to beat analytic. It was to get neural close enough that
-      the swap is a viable design option. At ~12x and well under 0.01% of a 60 FPS
-      frame budget, we are there for latency. Rollout fidelity is the open problem.
+      the swap is a viable design option. At ~16x and well under 0.01% of a 60 FPS
+      frame budget, we are there for this prototype when rollout stability is acceptable.
     </p>
 
     <hr>
@@ -1251,16 +760,16 @@ w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code><
     <pre><code>cd build &amp;&amp; cmake .. -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build .
 ./voxel_parkour.exe --record 500000 --out ../data/train.bin
 
-python tools/train.py --sweep-stable --epochs 40   # h48, h64, h48x24 on 3x3 data
+python tools/train.py --sweep              # speed ladder h12-h32
+python tools/train.py --sweep-stable         # larger stable models on 3x3 data
 
 ./voxel_parkour.exe --bench ../models/model_q8_h24_p3.bin
 ./voxel_parkour.exe</code></pre>
 
     <p>
       Tab toggles analytic and neural physics mid-game. N reloads the model.
-      Game loads <code>model_q8_h24_p3.bin</code> first, then falls back through
-      h48x24, h64, and h48. Training takes ~13 min for the stable sweep on CPU;
-      <code>--log-every 5</code> prints ETA during training.
+      Game loads <code>model_q8_h24_p3.bin</code> first, falls back through h48x24,
+      h64, and h48.
     </p>
 
     <hr>
@@ -1268,11 +777,11 @@ python tools/train.py --sweep-stable --epochs 40   # h48, h64, h48x24 on 3x3 dat
     <h2>what is next</h2>
 
     <p>
-      Rollout is ~89% on the default model, not perfect. Phasing still happens in
-      play despite good one-step numbers. Likely next experiments: multi-step training
-      loss (teach stable trajectories, not single frames), or a lightweight depenetration
-      clamp after the neural step (not full analytic fallback). Residual learning
-      (predict a delta on top of analytic) is another path.
+      Rollout is still ~89% on the default model, not perfect. Residual learning
+      (predict a correction to the analytic step) or a hybrid where analytic handles
+      collision and neural handles movement tuning are the obvious next experiments.
+      On the perf side: fusing pack+inference and profiling why h48 beats h64 on
+      rollout despite worse one-step numbers.
     </p>
 
     <div class="footer">
@@ -1304,7 +813,7 @@ python tools/train.py --sweep-stable --epochs 40   # h48, h64, h48x24 on 3x3 dat
     function drawProgressionChart(svg) {
       const data = [
         { label: 'analytic', val: 0.08, color: C.analytic },
-        { label: '3x3 h24', val: 0.95, color: C.h24 },
+        { label: '3x3 h24', val: 1.3, color: C.h24 },
         { label: '7x7 int8', val: 2.1, color: C.mid },
         { label: 'tiny 32', val: 3.2, color: C.tiny },
         { label: '64x64 avx', val: 6, color: C.avx },
@@ -1350,11 +859,11 @@ python tools/train.py --sweep-stable --epochs 40   # h48, h64, h48x24 on 3x3 dat
 
     function drawModelsChart(svg) {
       const models = [
-        { name: 'h24', step: 0.95, rollout: 89.2, tunnel: 2.4, color: C.h24 },
-        { name: 'h48', step: 1.79, rollout: 79.7, tunnel: 2.8, color: C.h48 },
-        { name: 'h64', step: 2.89, rollout: 72.9, tunnel: 2.7, color: C.h64 },
-        { name: 'h48x24', step: 2.38, rollout: 77.9, tunnel: 3.2, color: C.h48x24 },
-        { name: 'analytic', step: 0.08, rollout: 100, tunnel: 0, color: C.analytic }
+        { name: 'h24', step: 1.3, rollout: 89.0, color: C.h24 },
+        { name: 'h48', step: 2.4, rollout: 80.0, color: C.h48 },
+        { name: 'h64', step: 2.8, rollout: 73.0, color: C.h64 },
+        { name: 'h48x24', step: 3.5, rollout: 78.0, color: C.h48x24 },
+        { name: 'analytic', step: 0.08, rollout: 100, color: C.analytic }
       ];
       const W = 680, H = 300;
       const pad = { l: 56, r: 52, t: 36, b: 68 };

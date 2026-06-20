@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" fill="none">
+  <rect width="680" height="360" fill="#1a1a1a"/>
+  <rect x="0.5" y="0.5" width="679" height="359" stroke="#2e2e2e"/>
+
+  <text x="340" y="28" fill="#8a8680" font-family="Consolas, monospace" font-size="12" text-anchor="middle">default model: model_q8_h24_p3.bin</text>
+
+  <!-- input column -->
+  <text x="90" y="58" fill="#6ee7a8" font-family="Consolas, monospace" font-size="12" text-anchor="middle">39 inputs</text>
+  <rect x="24" y="72" width="132" height="220" rx="2" fill="#141414" stroke="#2e2e2e"/>
+  <text x="90" y="98" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">27 voxels</text>
+  <text x="90" y="114" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">3x3x3 patch</text>
+  <line x1="36" y1="124" x2="144" y2="124" stroke="#2e2e2e"/>
+  <text x="90" y="142" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">3 offsets</text>
+  <text x="90" y="158" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">sub-voxel pos</text>
+  <line x1="36" y1="168" x2="144" y2="168" stroke="#2e2e2e"/>
+  <text x="90" y="186" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">3 velocity</text>
+  <line x1="36" y1="196" x2="144" y2="196" stroke="#2e2e2e"/>
+  <text x="90" y="214" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">1 grounded</text>
+  <line x1="36" y1="224" x2="144" y2="224" stroke="#2e2e2e"/>
+  <text x="90" y="242" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">5 buttons</text>
+  <text x="90" y="258" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">WASD + jump</text>
+  <line x1="36" y1="268" x2="144" y2="268" stroke="#2e2e2e"/>
+  <text x="90" y="286" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">dt + scalars</text>
+
+  <!-- hidden -->
+  <text x="340" y="58" fill="#f4a261" font-family="Consolas, monospace" font-size="12" text-anchor="middle">24 hidden</text>
+  <rect x="274" y="120" width="132" height="124" rx="2" fill="#141414" stroke="#2e2e2e"/>
+  <text x="340" y="178" fill="#e8e4dc" font-family="Consolas, monospace" font-size="11" text-anchor="middle">int8 + ReLU</text>
+  <text x="340" y="196" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">per-row scale</text>
+  <text x="340" y="212" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">AVX2 matmul</text>
+
+  <!-- output -->
+  <text x="590" y="58" fill="#6ee7a8" font-family="Consolas, monospace" font-size="12" text-anchor="middle">7 outputs</text>
+  <rect x="524" y="72" width="132" height="220" rx="2" fill="#141414" stroke="#2e2e2e"/>
+  <text x="590" y="98" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">dx, dy, dz</text>
+  <line x1="536" y1="108" x2="644" y2="108" stroke="#2e2e2e"/>
+  <text x="590" y="126" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">next vx, vy, vz</text>
+  <line x1="536" y1="136" x2="644" y2="136" stroke="#2e2e2e"/>
+  <text x="590" y="154" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">next grounded</text>
+  <text x="590" y="190" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">applied directly</text>
+  <text x="590" y="206" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">no collision fix</text>
+
+  <!-- arrows -->
+  <line x1="156" y1="182" x2="270" y2="182" stroke="#2e2e2e" stroke-width="2"/>
+  <polygon points="270,182 260,177 260,187" fill="#2e2e2e"/>
+  <line x1="406" y1="182" x2="520" y2="182" stroke="#2e2e2e" stroke-width="2"/>
+  <polygon points="520,182 510,177 510,187" fill="#2e2e2e"/>
+
+  <text x="340" y="340" fill="#8a8680" font-family="Consolas, monospace" font-size="11" text-anchor="middle">~0.95 us per step on default build | ~1-4 KB on disk</text>
+</svg>

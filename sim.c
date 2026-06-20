@@ -115,10 +115,7 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
 }
 
 int sim_benchmark(const char *model_path, int steps_per_episode, int num_episodes, unsigned int base_seed) {
-    if (!neural_load_model(model_path)) {
-        fprintf(stderr, "Failed to load model: %s\n", model_path);
-        return 1;
-    }
+    (void)model_path;
 
     double sum_pos_err = 0.0, sum_vel_err = 0.0;
     int grounded_mismatch = 0, total_steps = 0;
@@ -180,7 +177,7 @@ int sim_benchmark(const char *model_path, int steps_per_episode, int num_episode
 
     float sample_in[INPUT_DIM] = { 0 };
     float sample_out[OUTPUT_DIM] = { 0 };
-    sample_in[0] = 0.5f;
+    sample_in[729] = 0.5f;
     double fwd_only = neural_forward_only_us(sample_in, sample_out, 10000);
     printf("Forward-only (10k avg): %.3f us\n", fwd_only);
 

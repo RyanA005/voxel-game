@@ -2,9 +2,9 @@
 #define NEURAL_H
 
 #include "common.h"
-#include "physics.h"
 
 int neural_load_model(const char *path);
+int neural_require_model(const char *path);
 int neural_model_loaded(void);
 void neural_forward(const float *input_raw, float *output_raw);
 void neural_physics_step(Player *p, InputState input, float dt);

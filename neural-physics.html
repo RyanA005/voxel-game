@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neural voxel parkour - Ryan Alport</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --fg: #e8e4dc;
+      --muted: #8a8680;
+      --accent: #6ee7a8;
+      --accent2: #f4a261;
+      --card: #1a1a1a;
+      --border: #2e2e2e;
+      --code-bg: #141414;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+      font-size: 15px;
+      line-height: 1.75;
+      padding: 2rem 1.25rem 4rem;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; }
+
+    .back {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-block;
+      margin-bottom: 2.5rem;
+    }
+    .back:hover { color: var(--accent); }
+
+    h1 {
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    .tldr {
+      border: 1px solid var(--border);
+      background: rgba(110, 231, 168, 0.04);
+      padding: 1rem 1.1rem;
+      margin-bottom: 2rem;
+    }
+
+    .tldr h2 { margin-top: 0; }
+
+    .note {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      padding: 0.85rem 1rem;
+      margin: 1.5rem 0;
+      font-size: 14px;
+    }
+
+    .note strong { color: var(--accent2); font-weight: 400; }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1.25rem 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .table-wrap table { margin: 0; min-width: 480px; }
+
+    .figure video {
+      display: block;
+      width: 100%;
+      background: var(--code-bg);
+    }
+
+    .compare-labels {
+      display: flex;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .compare-labels span {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem;
+      border-right: 1px solid var(--border);
+    }
+
+    .compare-labels span:last-child { border-right: none; }
+
+    .placeholder-note {
+      padding: 0.65rem 1rem;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      font-style: italic;
+    }
+
+    .meta { color: var(--muted); font-size: 13px; margin-bottom: 2rem; }
+    .meta span { margin-right: 1rem; }
+
+    .tags { margin-bottom: 2.5rem; }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 0.15rem 0.5rem;
+      margin-right: 0.4rem;
+      text-transform: lowercase;
+    }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 400;
+      color: var(--accent);
+      margin: 2rem 0 0.75rem;
+      text-transform: lowercase;
+    }
+
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--fg);
+      margin: 1.75rem 0 0.5rem;
+      text-transform: lowercase;
+    }
+
+    h4 {
+      font-size: 0.88rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin: 1.25rem 0 0.4rem;
+      text-transform: lowercase;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    a { color: var(--accent2); }
+    a:hover { text-decoration: none; }
+
+    em { color: var(--muted); font-style: normal; }
+
+    .figure {
+      background: var(--card);
+      border: 1px solid var(--border);
+      margin: 1.75rem 0;
+      overflow: hidden;
+    }
+
+    .figure img, .figure svg {
+      display: block;
+      width: 100%;
+    }
+
+    .caption {
+      padding: 0.65rem 1rem;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    .chart-wrap {
+      padding: 1.25rem 0.75rem 0.5rem;
+      overflow-x: auto;
+    }
+
+    .chart-wrap svg { min-width: 680px; }
+
+    .chart-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      text-transform: lowercase;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.6;
+      margin: 1.25rem 0;
+    }
+
+    code { font-family: inherit; font-size: 0.92em; }
+
+    p code, li code {
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border: 1px solid var(--border);
+    }
+
+    ul, ol { margin: 0 0 1rem 1.25rem; }
+    li { margin-bottom: 0.35rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      margin: 1.25rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.5rem;
+      text-align: left;
+    }
+    th { color: var(--muted); font-weight: 400; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.highlight td { background: rgba(110, 231, 168, 0.06); }
+
+    .callout {
+      border-left: 3px solid var(--accent2);
+      padding: 0.75rem 1rem;
+      margin: 1.5rem 0;
+      background: rgba(244, 162, 97, 0.05);
+      font-size: 14px;
+    }
+
+    .checkpoint {
+      border: 1px solid var(--border);
+      padding: 1rem 1.1rem;
+      margin: 1.5rem 0;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .checkpoint-title {
+      color: var(--accent);
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kbd {
+      display: inline-block;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+      padding: 0 0.35rem;
+      font-size: 12px;
+    }
+
+    @media (max-width: 520px) {
+      body { font-size: 14px; }
+      table { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <article class="wrap">
+    <a class="back" href="#">back to ryanhub</a>
+
+    <h1>neural voxel parkour</h1>
+
+    <p class="subtitle">
+      replacing a C voxel character controller with a 1 KB int8 neural network
+    </p>
+
+    <p class="meta">
+      <span>by Ryan Alport</span>
+      <span>Jun 19, 2026</span>
+    </p>
+
+    <div class="tags">
+      <span class="tag">C</span>
+      <span class="tag">raylib</span>
+      <span class="tag">physics</span>
+      <span class="tag">machine learning</span>
+      <span class="tag">cursor</span>
+    </div>
+
+    <div class="figure">
+      <img src="https://ryanhub.org/images/neural-physics.png" alt="Neural Voxel Parkour running in raylib with neural physics enabled">
+      <div class="caption">
+        hero screenshot from the raylib build. Tab toggles analytic and neural physics mid-game.
+      </div>
+    </div>
+
+    <section class="tldr">
+      <h2>tl;dr</h2>
+      <p>
+        I built a small C/raylib voxel parkour game where the player physics can switch
+        between an analytic character controller and a tiny neural network. The best
+        shipped model is a 39-input, 24-hidden-unit int8 MLP. It runs in about 0.95
+        microseconds per step, roughly 12x slower than the analytic baseline but still
+        tiny in real-time terms.
+      </p>
+      <p>
+        The important result is not that neural physics beats hand-written physics. It
+        does not. The interesting result is that one-step prediction looks very good,
+        while long rollout stability is much harder. The model can learn the local
+        transition, but drift, jitter, and tunneling show up when it drives itself for
+        hundreds of frames.
+      </p>
+    </section>
+
+    <h2>the idea</h2>
+
+    <p>
+      I wanted a small 3D voxel parkour game where the physics step could be swapped
+      at runtime. The analytic engine handles acceleration, friction, gravity, jumping,
+      and axis-separated AABB collision in one function: <code>physics_step()</code>.
+      The goal was to train a neural network that predicts the same state transition,
+      then push inference latency down until it is close to the analytic baseline.
+    </p>
+
+    <p>
+      That means two parallel optimization tracks. On the algorithmic side: keep the
+      teacher fast and deterministic. On the neural side: shrink the observation,
+      quantize weights, fuse normalization, and tune the matmul kernels until the
+      gap is measured in single-digit microseconds, not milliseconds.
+    </p>
+
+    <aside class="note">
+      <strong>What this is not:</strong>
+      this is not a better replacement for normal game physics. The analytic controller
+      is faster, more stable, and easier to debug. This project is about testing how
+      far a tiny learned transition model can go before rollout drift becomes visible.
+    </aside>
+
+    <hr>
+
+    <h2>the game</h2>
+
+    <p>
+      16x16x16 voxel world, procedural parkour maps, orange cube player, WASD and
+      space to jump. Each launch generates a new map via random-walk platforms with
+      gaps and height changes. Blue start, green goal. Fall below y = -4 and respawn.
+      Reach the goal and the world regenerates.
+    </p>
+
+    <div class="figure">
+      <video autoplay loop muted playsinline poster="https://ryanhub.org/images/neural-physics.png">
+        <source src="https://ryanhub.org/images/neural-physics-side-by-side.mp4" type="video/mp4">
+      </video>
+      <div class="compare-labels">
+        <span>analytic teacher</span>
+        <span>neural rollout</span>
+      </div>
+      <div class="caption">
+        same map, same input sequence. The analytic player is the teacher; the neural
+        player runs only the learned transition model. Mostly good, then occasional drift.
+      </div>
+      <div class="placeholder-note">
+        video placeholder: capture with <code>--compare-video</code> or ffmpeg from dumped
+        frames. MP4 preferred over GIF for page weight.
+      </div>
+    </div>
+
+    <h3>rollout is the hard part</h3>
+    <p>
+      One-step validation looks great for every model we kept (~98.7% grounded). The side-by-side
+      clip shows what happens over hundreds of frames: mostly fine movement, then small errors
+      compound into drift and occasional tunneling. That gap between one-step and rollout is
+      the core result of this project.
+    </p>
+
+    <div class="callout">
+      controls: <span class="kbd">WASD</span> move |
+      <span class="kbd">Space</span> jump |
+      <span class="kbd">R</span> new map |
+      <span class="kbd">Tab</span> toggle analytic/neural physics |
+      <span class="kbd">N</span> reload model
+    </div>
+
+    <hr>
+
+    <h2>architecture</h2>
+
+    <p>
+      The physics pass is isolated behind a single call site so analytic and neural
+      paths share the same game loop:
+    </p>
+
+    <pre><code>if (physics_mode == PHYSICS_ANALYTIC)
+    physics_step(&amp;player, input, dt);
+else
+    neural_physics_step(&amp;player, input, dt);</code></pre>
+
+    <p>
+      The analytic engine is the teacher. During data collection it records paired
+      before/after states under randomized input policies. The neural path loads a
+      binary MLP from disk and runs inference in C with no pytorch at runtime.
+    </p>
+
+    <p>
+      Output is 7 floats: dx, dy, dz, next vx, next vy, next vz, next grounded.
+      Training uses pytorch; inference uses exported float or int8 weights with
+      per-row scale factors.
+    </p>
+
+    <div class="figure">
+      <img src="images/neural-physics-pipeline.svg" alt="Pipeline from analytic physics through training records, train.py, model binary, to neural_physics_step in the game loop">
+      <div class="caption">
+        closed loop: analytic physics generates labels, training exports a tiny binary,
+        C loads it and swaps into the same game loop at runtime.
+      </div>
+    </div>
+
+    <hr>
+
+    <h2>starting assumptions</h2>
+
+    <p>
+      These were the constraints I set before any optimization work began. They
+      shaped every later decision.
+    </p>
+
+    <ul>
+      <li><strong>Fixed dt only.</strong> 1/60 s everywhere. No variable timestep in training or inference.</li>
+      <li><strong>Pure C MLP inference.</strong> No pytorch, no BLAS dependency at runtime. Weights load from a binary blob.</li>
+      <li><strong>Analytic teacher.</strong> <code>physics_step()</code> generates labels. The network learns to imitate it, not invent its own physics.</li>
+      <li><strong>One-step supervision.</strong> Train on single-tick transitions. Rollout drift is measured separately; it now drives default model selection, not just diagnostics.</li>
+      <li><strong>Swappable call site.</strong> Same game loop, same inputs, same observation packing. Only the step function changes.</li>
+      <li><strong>No collision correction at runtime.</strong> The network sets position and velocity directly. There is no analytic fallback. Small per-frame errors compound; the player can end up inside voxels.</li>
+      <li><strong>98% grounded floor (one-step).</strong> Any model below that on held-out validation is rejected. Rollout stability is a separate, harder filter for picking the default.</li>
+    </ul>
+
+    <p>
+      Full writeup of the original spec lives in <code>spec.md</code> in the repo.
+      See <em>building with cursor</em> near the end for how those constraints were
+      enforced in practice.
+    </p>
+
+    <hr>
+
+    <h2>implementation</h2>
+
+    <p>
+      The repo is plain C99 + raylib, CMake, and a small Python training script.
+      No engine, no ECS, no runtime ML dependencies. The whole project is small enough
+      to hold in your head: seven C files, one header of shared constants, two Python tools.
+    </p>
+
+    <h3>code layout</h3>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>file</th><th>role</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>main.c</code></td><td>raylib loop, input, Tab toggle, model load order</td></tr>
+        <tr><td><code>physics.c</code></td><td>analytic teacher: accel, friction, gravity, axis AABB collision</td></tr>
+        <tr><td><code>world.c</code></td><td>16³ voxel grid, procedural map, player spawn nudge</td></tr>
+        <tr><td><code>observation.c</code></td><td>3³ patch around player, feature packing for train + inference</td></tr>
+        <tr><td><code>neural.c</code></td><td>binary model load, int8/float forward pass, AVX2 matmul, <code>neural_physics_step()</code></td></tr>
+        <tr><td><code>sim.c</code></td><td>headless dataset recorder, rollout benchmark vs analytic</td></tr>
+        <tr><td><code>common.h</code></td><td><code>PATCH_D</code>, <code>INPUT_DIM</code>, packed <code>TrainingRecord</code>, model magic bytes</td></tr>
+        <tr><td><code>tools/train.py</code></td><td>load dataset, train MLP, fuse norm, export int8/float <code>.bin</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>closed loop</h3>
+
+    <p>
+      Everything hangs off one pipeline. Same binary, different CLI flags:
+    </p>
+
+    <pre><code># 1. record 500k one-step transitions from analytic physics (headless, ~seconds)
+./voxel_parkour.exe --record 500000 --out data/train.bin
+
+# 2. train + export int8 models (~12 min stable sweep on CPU)
+python tools/train.py --sweep-stable --epochs 40
+
+# 3. measure rollout + latency vs analytic
+./voxel_parkour.exe --bench models/model_q8_h24_p3.bin
+
+# 4. play, toggle mid-game
+./voxel_parkour.exe</code></pre>
+
+    <p>
+      Recording never opens a window. It runs the same <code>physics_step()</code> as the
+      game, writes fixed-size rows to disk, and rotates maps when the player falls or
+      an episode hits 400 steps. Training reads those rows, holds out 20% of map seeds
+      for validation, and exports weights the C loader understands.
+    </p>
+
+    <h3>observation format</h3>
+
+    <p>
+      Each training row is 90 bytes, packed to match C struct layout exactly:
+    </p>
+
+    <ul>
+      <li><strong>27 bytes</strong> — voxel types in the 3³ neighborhood (0=empty, 1=solid, …)</li>
+      <li><strong>12 bytes</strong> — sub-voxel offset (3 floats)</li>
+      <li><strong>12 bytes</strong> — velocity before the step</li>
+      <li><strong>6 bytes</strong> — grounded flag + 5 input buttons</li>
+      <li><strong>4 bytes</strong> — fixed dt (1/60)</li>
+      <li><strong>25 bytes</strong> — analytic targets: Δpos, next vel, next grounded</li>
+      <li><strong>4 bytes</strong> — map seed (for train/val split)</li>
+    </ul>
+
+    <p>
+      At inference, <code>pack_player_features()</code> builds the same 39-float input
+      vector the trainer sees: voxels / 4, offsets, normalized vel, grounded, one-hot
+      inputs. Train/serve skew here would show up immediately as rollout drift, so the
+      packing path is shared logic duplicated once in C (not two different codepaths).
+    </p>
+
+    <h3>model binary format</h3>
+
+    <p>
+      Shipped models are int8 v2 blobs (~1–4 KB). Header: magic <code>MLP!</code>, version,
+      four ints (input_dim, h1, h2, output_dim). Weights are per-row quantized int8
+      with float scales; biases are pre-fused with input/output normalization at export
+      time so inference never touches mean/std arrays. Forward pass: int8 matmul →
+      scale → ReLU → int8 matmul → scale → 7 outputs applied directly to player state.
+    </p>
+
+    <pre><code>void neural_physics_step(Player *p, InputState input, float dt) {
+    float in[INPUT_DIM], out[OUTPUT_DIM];
+    pack_player_features(p, input, in);
+    neural_forward(in, out);
+    p->pos.x += out[0];  p->pos.y += out[1];  p->pos.z += out[2];
+    p->vel.x = out[3];   p->vel.y = out[4];   p->vel.z = out[5];
+    p->grounded = out[6] >= 0.5f ? 1 : 0;
+}</code></pre>
+
+    <p>
+      AVX2 FMA kernels live only in <code>neural.c</code>. Applying <code>-march=native</code>
+      to the whole executable caused stack misalignment crashes in raylib's render path;
+      scoping SIMD to the inference translation unit fixed that.
+    </p>
+
+    <h3>benchmark modes</h3>
+
+    <p>
+      <code>--bench</code> runs 50 episodes × up to 300 steps. Each step: same random
+      input drives analytic and neural players in parallel from identical starting
+      state. We track mean position/velocity error, grounded mismatch %, and tunnel
+      count (neural AABB overlapping solids while airborne). That last metric matches
+      what you see as phasing in play.
+    </p>
+
+    <h3>analytic teacher (what the network imitates)</h3>
+
+    <p>
+      The teacher is deliberately boring: axis-separated AABB collision against a
+      16×16×16 voxel grid, no rotation, no swept tests. Each frame applies input
+      acceleration, horizontal friction, speed clamp, optional jump, gravity, then
+      moves X → Y → Z independently — if a move collides, snap back and zero velocity
+      on that axis. Landing on Y sets <code>grounded = 1</code>.
+    </p>
+
+    <pre><code>void physics_step(Player *p, InputState input, float dt) {
+    /* accel + friction + jump + gravity */
+    p->grounded = 0;
+    move_axis(p, 0, p->vel.x * dt);  /* X, then Y, then Z */
+    move_axis(p, 1, p->vel.y * dt);
+    move_axis(p, 2, p->vel.z * dt);
+}</code></pre>
+
+    <p>
+      Recording snapshots the player <em>before</em> the step, runs
+      <code>physics_step()</code>, snapshots <em>after</em>, and writes the delta as
+      training targets. The network never sees collision resolution code — it learns
+      the end-to-end mapping from local geometry + state to the teacher's outcome.
+    </p>
+
+    <h3>training and export</h3>
+
+    <p>
+      <code>train.py</code> loads the binary dataset with numpy struct unpacking
+      (one <code>frombuffer</code> pass over 500k rows, not a Python loop per sample).
+      Map seeds split train/val 80/20 so the network generalizes across procedural
+      layouts, not just held-out frames from the same map.
+    </p>
+
+    <p>
+      The MLP is a plain two-layer ReLU net in PyTorch: 39 → h → 7. After training,
+      <code>fuse_weights()</code> bakes input/output z-score normalization into the
+      first and last layer so C inference never loads mean/std arrays:
+    </p>
+
+    <pre><code>w1 = w1 / x_std;  b1 = b1 - w1 @ x_mean   # input norm → layer 1
+w3 = w3 * y_std;  b3 = b3 * y_std + y_mean   # output denorm → layer 3</code></pre>
+
+    <p>
+      int8 export quantizes each weight row independently (per-row scale, max abs → 127).
+      Biases stay float32. The C loader reads magic <code>MLP!</code>, dims, packed int8
+      weights + scales, and runs the same graph as PyTorch at eval time — within
+      quantization error. Sweep flags train multiple hidden widths in one invocation,
+      reusing the cached dataset between models.
+    </p>
+
+    <h3>build and entry points</h3>
+
+    <p>
+      CMake fetches raylib 5.5, builds one executable with Release defaults
+      (<code>-O3 -ffast-math</code>). AVX2/FMA flags apply only to <code>neural.c</code>
+      — not the whole binary. Same exe, four modes:
+    </p>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>flag</th><th>behavior</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>(none)</code></td><td>raylib game, Tab toggles analytic/neural, N reloads model</td></tr>
+        <tr><td><code>--record N --out path</code></td><td>headless, writes N rows to <code>train.bin</code></td></tr>
+        <tr><td><code>--bench model.bin</code></td><td>headless rollout + forward-pass timing vs analytic</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      Model load tries several relative paths (<code>models/…</code>,
+      <code>../models/…</code>) so the same binary works from repo root or
+      <code>build/</code>. Default search order prefers h24, then h48×24, h64, h48.
+    </p>
+
+    <hr>
+
+    <h2>current models</h2>
+
+    <p>
+      Four int8 models remain in <code>models/</code>. All use native 3x3 observations
+      (500k recorded samples, 90-byte rows). Older 7x7, 9x9, float, and speed-ladder
+      (h12/h16/h32) checkpoints were removed after rollout testing.
+    </p>
+
+    <div class="figure">
+      <img src="images/neural-physics-mlp.svg" alt="Default int8 MLP: 39 inputs, 24 hidden units, 7 outputs">
+      <div class="caption">
+        the default model sees a 3x3x3 voxel neighborhood plus player state and input
+        buttons, then predicts position delta, next velocity, and grounded state.
+      </div>
+    </div>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>file</th>
+          <th class="num">hidden</th>
+          <th class="num">one-step</th>
+          <th class="num">rollout</th>
+          <th class="num">tunnel*</th>
+          <th class="num">step</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight">
+          <td><code>model_q8_h24_p3.bin</code> default</td>
+          <td class="num">24</td>
+          <td class="num">98.7%</td>
+          <td class="num">~89%</td>
+          <td class="num">~2.4%</td>
+          <td class="num">~0.95 us</td>
+        </tr>
+        <tr>
+          <td><code>model_q8_h48_p3.bin</code></td>
+          <td class="num">48</td>
+          <td class="num">98.7%</td>
+          <td class="num">~80%</td>
+          <td class="num">~2.8%</td>
+          <td class="num">~1.8 us</td>
+        </tr>
+        <tr>
+          <td><code>model_q8_h64_p3.bin</code></td>
+          <td class="num">64</td>
+          <td class="num">98.7%</td>
+          <td class="num">~73%</td>
+          <td class="num">~2.7%</td>
+          <td class="num">~2.9 us</td>
+        </tr>
+        <tr>
+          <td><code>model_q8_h48x24_p3.bin</code></td>
+          <td class="num">48x24</td>
+          <td class="num">98.7%</td>
+          <td class="num">~78%</td>
+          <td class="num">~3.2%</td>
+          <td class="num">~2.4 us</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      <em>*tunnel = fraction of steps where the neural player overlaps solid voxels while
+      not grounded. Analytic physics: 0%. Measured on 50 episodes x up to 300 steps with
+      <code>--bench</code>.</em>
+    </p>
+
+    <div class="callout">
+      one-step % = held-out validation, single frame. rollout % = 100 minus grounded
+      mismatch over long parallel runs vs analytic. They are not the same number; early
+      blog drafts conflated them.
+    </div>
+
+    <hr>
+
+    <h2>optimization progression</h2>
+
+    <p>
+      Each checkpoint below is a real model variant we trained and benchmarked. For
+      each one I list what we assumed would work, what actually drove the numbers,
+      and what we learned before moving to the next step.
+    </p>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 0: analytic baseline</div>
+      <p><strong>Model:</strong> hand-written <code>physics_step()</code></p>
+      <p><strong>Latency:</strong> ~0.08 us per tick</p>
+
+      <h4>assumption</h4>
+      <p>
+        A few arithmetic ops plus three axis-separated collision checks would stay
+        effectively free compared to any neural path. This is the target we are trying
+        to approach, not beat.
+      </p>
+
+      <h4>what drives performance</h4>
+      <ul>
+        <li>Fixed small constant work: accel, friction, gravity, jump, three axis moves</li>
+        <li>No allocations, no branches beyond collision resolution</li>
+        <li>Compiler inlines everything at -O3</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        Confirmed. Analytic physics uses roughly 0.005% of a 60 FPS frame budget.
+        Every neural model is measured as a multiple of this number.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 1: model.bin (9x9x9, 128x128 float)</div>
+      <p><strong>Input:</strong> 741 dims (729 voxels + 12 scalars)</p>
+      <p><strong>Architecture:</strong> 741 -> 128 -> 128 -> 7</p>
+      <p><strong>Latency:</strong> ~305 us full step (~4000x analytic)</p>
+      <p><strong>One-step accuracy:</strong> 99.2% grounded, pos RMSE 0.00253</p>
+
+      <h4>assumption</h4>
+      <p>
+        A 9x9x9 local patch gives enough spatial context to learn collision and
+        jumping. A two-hidden-layer 128x128 MLP has enough capacity to match the
+        teacher on one-step labels. Accuracy first, speed later.
+      </p>
+
+      <h4>what drives performance</h4>
+      <ul>
+        <li><strong>Matmul dominates.</strong> ~741x128 + 128x128 + 128x7 multiply-adds every tick</li>
+        <li><strong>Debug build.</strong> No -O3, no SIMD, naive dot products</li>
+        <li><strong>Runtime normalization.</strong> Separate mean/std pass before layer 1, denorm after layer 3</li>
+        <li><strong>Two-pass feature packing.</strong> Build observation struct, then pack to floats</li>
+        <li><strong>Float32 weights.</strong> Full bandwidth on every weight read</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        Accuracy was good immediately. Speed was not playable-adjacent without
+        optimization. The 9x9 patch assumption held for accuracy but was overkill
+        for this simple geometry. We had proof the swap worked; next goal was inference.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 2: model_fast.bin (9x9x9, 64x64 float, optimized C)</div>
+      <p><strong>Input:</strong> 741 dims</p>
+      <p><strong>Architecture:</strong> 741 -> 64 -> 64 -> 7</p>
+      <p><strong>Latency:</strong> ~6 us full step (~80x analytic), forward ~4.9 us</p>
+      <p><strong>One-step accuracy:</strong> 99.1% grounded, pos RMSE 0.00324</p>
+
+      <h4>assumption</h4>
+      <p>
+        Most of the 305 us was implementation overhead, not fundamental compute.
+        Release build, smaller hidden layers, and a faster inference path would get
+        us into single-digit microseconds without retraining on a smaller patch.
+      </p>
+
+      <h4>what drives performance (changes applied)</h4>
+      <ul>
+        <li><strong>Release build:</strong> <code>-O3 -ffast-math -fno-math-errno</code></li>
+        <li><strong>Fused normalization:</strong> input/output mean and std baked into weights at load time. No runtime norm arrays.</li>
+        <li><strong>Single-pass packing:</strong> <code>pack_player_features()</code> writes the 741-float vector directly from world state</li>
+        <li><strong>Unrolled scalar matmul:</strong> 8-wide manual unroll, <code>restrict</code> pointers</li>
+        <li><strong>Smaller network:</strong> 64x64 cuts FLOPs ~4x vs 128x128</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        ~50x speedup from checkpoint 1, mostly from compiler flags and removing
+        redundant normalization passes. Still 80x slower than analytic because the
+        741-wide first layer dominates. Patch size was now the obvious next lever.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 3: model_tiny.bin (9x9x9, 32-neuron single layer, AVX2)</div>
+      <p><strong>Input:</strong> 741 dims</p>
+      <p><strong>Architecture:</strong> 741 -> 32 -> 7 (one hidden layer)</p>
+      <p><strong>Latency:</strong> ~3.2 us full step (~35x analytic), forward ~2.7 us</p>
+      <p><strong>One-step accuracy:</strong> 99.0% grounded, pos RMSE 0.00465</p>
+
+      <h4>assumption</h4>
+      <p>
+        We could drop the second hidden layer entirely and cut neurons to 32 without
+        losing playability. AVX2 FMA would accelerate the still-large 741-input first
+        layer.
+      </p>
+
+      <h4>what drives performance (changes applied)</h4>
+      <ul>
+        <li><strong>AVX2 FMA kernels:</strong> 8-wide SIMD dot products on all layers</li>
+        <li><strong>Single-layer MLP:</strong> eliminates 64x64 middle matmul entirely</li>
+        <li><strong>Row-wise AVX:</strong> we tried input-major layout for layer 1 first; it broke rollout accuracy. Row-wise AVX on output-major weights was the fix.</li>
+        <li><strong>-mavx2 -mfma</strong> compile flags</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        Another ~2x win, but the 741-input first layer is still the bottleneck.
+        One-step accuracy held above 99%. Input-major AVX was a useful negative
+        result: layout matters as much as SIMD when in_n is large and out_n is small.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 4: 7x7 patch + int8 (model_q8_h16, 355 inputs)</div>
+      <p><strong>Input:</strong> 355 dims (343 voxels + 12 scalars), cropped from 9x9 records</p>
+      <p><strong>Architecture:</strong> 355 -> 16 -> 7 int8</p>
+      <p><strong>Latency:</strong> ~2.1 us full step (~26x analytic), forward ~1.8 us</p>
+      <p><strong>One-step accuracy:</strong> 98.83% grounded, pos RMSE 0.00571</p>
+
+      <h4>assumption</h4>
+      <p>
+        We do not need 9x9 context for this parkour. Cropping to 7x7 halves input
+        dims without re-recording the dataset. int8 quantization cuts weight memory
+        bandwidth. A 16-neuron single layer is enough if we accept slightly lower
+        accuracy.
+      </p>
+
+      <h4>what drives performance (changes applied)</h4>
+      <ul>
+        <li><strong>Smaller patch:</strong> PATCH_R 3 (7x7x7). Training crops center 7x7 from existing 792-byte records.</li>
+        <li><strong>int8 weights:</strong> per-output-row scale factors, int8 dot products in C</li>
+        <li><strong>Pre-fused normalization at export:</strong> int8 models skip runtime mean/std entirely</li>
+        <li><strong>16-neuron width:</strong> smallest layer count that cleared 98% grounded in sweep</li>
+        <li><strong>-march=native:</strong> CPU-specific instruction selection</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        First checkpoint under 98% was not the issue; h16 cleared 98.83%. The
+        combined patch shrink + int8 + tiny hidden layer broke the ~26x barrier.
+        These 7x7 models are historical only; they were removed from <code>models/</code>
+        once native 3x3 training landed.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 5: 3x3 patch + int8 speed ladder</div>
+      <p><strong>Input:</strong> 39 dims (27 voxels + 12 scalars)</p>
+      <p><strong>Architectures:</strong> h12, h16, h24, h32 single-layer int8 MLPs</p>
+      <p><strong>Best latency:</strong> ~0.75 us full step (h12), ~0.52 us (h16)</p>
+      <p><strong>One-step accuracy:</strong> 98.55% to 98.67% grounded (all above floor)</p>
+
+      <h4>assumption</h4>
+      <p>
+        Immediate neighbors are enough for this world. Platforms are 2-4 voxels wide,
+        gaps are small, and the player only needs to know what is directly adjacent
+        plus velocity and input state. If 3x3 fails one-step validation, grounded
+        accuracy would drop below 98%.
+      </p>
+
+      <h4>what drives performance (changes applied)</h4>
+      <ul>
+        <li><strong>39-input first layer:</strong> down from 741. First matmul is ~19x fewer ops than original.</li>
+        <li><strong>Native 3x3 dataset:</strong> 500k samples recorded at PATCH_D=3 (record_size=90). No crop step.</li>
+        <li><strong>int8 sweep:</strong> <code>python tools/train.py --sweep</code> trains h12 through h32</li>
+        <li><strong>Feature pack is cheap:</strong> 27 voxel reads + 12 scalars. Small relative to matmul at h24+.</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        3x3 held on one-step metrics. h12 was the latency winner (~0.75 us full step).
+        h16 was oddly faster on full step (~0.52 us) despite a larger forward pass.
+        All four cleared 98%. Playtesting and rollout benchmarks showed one-step
+        numbers were not enough to pick a default.
+      </p>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-title">checkpoint 6: rollout-stable models (current default)</div>
+      <p><strong>Input:</strong> 39 dims (27 voxels + 12 scalars)</p>
+      <p><strong>Models kept:</strong> h24, h48, h64, h48x24 int8 on 3x3 patch</p>
+      <p><strong>Default:</strong> model_q8_h24_p3.bin (~0.95 us, ~89% rollout grounded)</p>
+      <p><strong>One-step accuracy:</strong> 98.65% to 98.74% grounded on kept models</p>
+      <p><strong>Playtest reality:</strong> ~2.4% of airborne benchmark steps still overlap solids (293 / 12408). You can feel this as occasional phasing. Analytic: 0 overlaps.</p>
+
+      <h4>assumption</h4>
+      <p>
+        Multi-step drift is the real failure mode. A model that looks fine on held-out
+        one-step labels can still tunnel through voxels after hundreds of ticks.
+        Wider hidden layers, a two-layer MLP, or a 5x5 patch might improve rollout
+        without giving back too much latency.
+      </p>
+
+      <h4>what drives performance (changes applied)</h4>
+      <ul>
+        <li><strong>Rollout benchmark:</strong> 50 episodes x 300 steps, analytic vs neural in parallel, grounded agreement tracked</li>
+        <li><strong>Stable sweep:</strong> <code>--sweep-stable</code> trains h48, h64, and 48x24 two-layer models</li>
+        <li><strong>5x5 patch experiment:</strong> tried larger observation windows; h24 on 3x3 still won rollout</li>
+        <li><strong>Model cleanup:</strong> old 7x7 and 9x9 models removed from <code>models/</code></li>
+        <li><strong>Default selection:</strong> h24 balances ~1.3 us step cost with best rollout among kept models</li>
+      </ul>
+
+      <h4>result</h4>
+      <p>
+        Bigger is not always better. h48x24 (two-layer) hits 98.74% one-step but only
+        ~78% rollout. h64 is ~73% rollout at ~2.8 us. h48 is ~80% at ~2.4 us.
+        h24 stays the default: ~89% rollout, ~0.95 us, 98.67% one-step. Still ~12x
+        analytic. Wider models (h48, h64, 48x24) did not improve rollout; a 5x5 patch
+        re-record and retrain also lost to h24 on 3x3. The remaining gap is structural:
+        open-loop prediction with no post-step collision fix.
+      </p>
+    </div>
+
+    <hr>
+
+    <h2>where time goes (current 3x3 h24 model)</h2>
+
+    <p>
+      At 39 inputs and 24 hidden neurons, the full neural step breaks down roughly as:
+    </p>
+
+    <ul>
+      <li><strong>pack_player_features():</strong> 27 voxel lookups + 12 scalar writes.</li>
+      <li><strong>Layer 1 (39 -> 24 int8):</strong> 936 int8 multiply-adds with per-row scale. Dominates forward pass (~0.76 us).</li>
+      <li><strong>Layer 2 (24 -> 7 int8):</strong> 168 multiply-adds. Minor.</li>
+      <li><strong>State apply:</strong> write pos delta, velocity, grounded flag. No collision pass.</li>
+    </ul>
+
+    <p>
+      AVX2 FMA lives only in <code>neural.c</code> (not whole-program <code>-march=native</code>);
+      global AVX flags caused stack misalignment crashes when calling raylib from <code>main</code>.
+    </p>
+
+    <p>
+      Compared to analytic (~0.08 us), the network still does hundreds of multiply-adds
+      per tick. We removed the speed-ladder models (h12/h16/h32) from disk; they were
+      faster on paper but worse on rollout.
+    </p>
+
+    <hr>
+
+    <h2>benchmarks</h2>
+
+    <div class="figure">
+      <div class="chart-wrap">
+        <div class="chart-title">inference latency fell ~320x</div>
+        <svg id="chart-progression" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="caption">
+        most of the speedup came from shrinking the observation and model. SIMD and int8
+        helped, but the biggest win was not asking the network to look at a 9x9x9 world.
+      </div>
+    </div>
+
+    <div class="figure">
+      <div class="chart-wrap">
+        <div class="chart-title">one-step accuracy did not predict rollout stability</div>
+        <svg id="chart-rollout" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="caption">
+        held-out one-step accuracy stayed high across models. long rollout exposed the real
+        failures: drift, grounded disagreement, and occasional tunneling.
+      </div>
+    </div>
+
+    <div class="figure">
+      <div class="chart-wrap">
+        <div class="chart-title">latency vs rollout tradeoff (kept models)</div>
+        <svg id="chart-tradeoff" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="caption">
+        default h24 is not the fastest point. it sits in the upper-left of the useful
+        frontier: best rollout among models we still ship.
+      </div>
+    </div>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>checkpoint</th>
+          <th class="num">input</th>
+          <th class="num">arch</th>
+          <th class="num">neural step</th>
+          <th class="num">one-step</th>
+          <th class="num">rollout</th>
+          <th class="num">tunnel</th>
+          <th class="num">vs analytic</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>analytic baseline</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">~0.08 us</td>
+          <td class="num">100%</td>
+          <td class="num">100%</td>
+          <td class="num">0%</td>
+          <td class="num">1x</td>
+        </tr>
+        <tr>
+          <td>model.bin (unoptimized)</td>
+          <td class="num">741</td>
+          <td class="num">128x128 f32</td>
+          <td class="num">~305 us</td>
+          <td class="num">99.2%</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">~3800x</td>
+        </tr>
+        <tr>
+          <td>model_fast.bin</td>
+          <td class="num">741</td>
+          <td class="num">64x64 f32</td>
+          <td class="num">~6 us</td>
+          <td class="num">99.1%</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">~75x</td>
+        </tr>
+        <tr>
+          <td>model_tiny.bin</td>
+          <td class="num">741</td>
+          <td class="num">32 f32</td>
+          <td class="num">~3.2 us</td>
+          <td class="num">99.0%</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">~40x</td>
+        </tr>
+        <tr>
+          <td>model_q8_h16 (7x7, removed)</td>
+          <td class="num">355</td>
+          <td class="num">16 int8</td>
+          <td class="num">~2.1 us</td>
+          <td class="num">98.8%</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">~26x</td>
+        </tr>
+        <tr class="highlight">
+          <td>model_q8_h24_p3 (default)</td>
+          <td class="num">39</td>
+          <td class="num">24 int8</td>
+          <td class="num">~0.95 us</td>
+          <td class="num">98.7%</td>
+          <td class="num">~89%</td>
+          <td class="num">~2.4%</td>
+          <td class="num">~12x</td>
+        </tr>
+        <tr>
+          <td>model_q8_h48_p3</td>
+          <td class="num">39</td>
+          <td class="num">48 int8</td>
+          <td class="num">~1.8 us</td>
+          <td class="num">98.7%</td>
+          <td class="num">~80%</td>
+          <td class="num">~2.8%</td>
+          <td class="num">~22x</td>
+        </tr>
+        <tr>
+          <td>model_q8_h64_p3</td>
+          <td class="num">39</td>
+          <td class="num">64 int8</td>
+          <td class="num">~2.9 us</td>
+          <td class="num">98.7%</td>
+          <td class="num">~73%</td>
+          <td class="num">~2.7%</td>
+          <td class="num">~36x</td>
+        </tr>
+        <tr>
+          <td>model_q8_h48x24_p3</td>
+          <td class="num">39</td>
+          <td class="num">48x24 int8</td>
+          <td class="num">~2.4 us</td>
+          <td class="num">98.7%</td>
+          <td class="num">~78%</td>
+          <td class="num">~3.2%</td>
+          <td class="num">~30x</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <hr>
+
+    <h2>lessons</h2>
+
+    <h3>one-step accuracy lies</h3>
+    <p>
+      Every checkpoint looked fine on held-out one-step validation (98-99% grounded).
+      Early writeups sometimes reported those numbers as if they were long-run rollout
+      scores. They are not. Rollout benchmarks (50 episodes x 300 steps, analytic vs
+      neural in parallel) show ~89% grounded agreement for the default h24 model.
+      Errors compound: position drifts, the 3x3 patch sees the wrong voxels, and the
+      player phases through blocks (~2.4% of airborne steps in bench). Analytic physics
+      has zero such overlaps.
+    </p>
+
+    <h3>why old builds felt more stable</h3>
+    <p>
+      Crop-trained weights from the first 3x3 sweep are gone; we re-recorded native 3x3
+      data and retrained. One-step metrics stayed similar but rollout changed. There is
+      no analytic collision fallback (removed on purpose). If an older build felt smoother,
+      it may have been different weights, not a magic architecture change. The current
+      default is the best rollout model we still have on disk.
+    </p>
+
+    <h3>patch size mattered more than hidden width</h3>
+    <p>
+      Going from 741 to 355 to 39 inputs gave larger wins than any matmul kernel
+      tweak. The 9x9 assumption was safe but expensive. 3x3 was the risky bet that
+      paid off for this specific world generator.
+    </p>
+
+    <h3>implementation details compound</h3>
+    <p>
+      Release flags, fused normalization, single-pass feature packing, and int8
+      export each gave meaningful gains alone. Stacked together they turned a
+      research prototype into something that runs at ~0.95 us (h24 default) without
+      changing the fundamental fact that matmul is slower than analytic collision code.
+    </p>
+
+    <h3>bigger models do not fix rollout</h3>
+    <p>
+      h48, h64, and 48x24 all beat h24 on one-step metrics but score worse on rollout
+      and tunnel counts. A 5x5 patch experiment did not beat h24 on 3x3 either. More
+      neurons or context within this MLP formulation does not solve open-loop drift.
+      Next levers: multi-step training, or a minimal post-neural depenetration pass
+      (nudge out of solids without full analytic physics).
+    </p>
+
+    <h3>analytic will always win on raw speed</h3>
+    <p>
+      The goal was never to beat analytic. It was to get neural close enough that
+      the swap is a viable design option. At ~12x and well under 0.01% of a 60 FPS
+      frame budget, we are there for latency. Rollout fidelity is the open problem.
+    </p>
+
+    <hr>
+
+    <h2>building with cursor</h2>
+
+    <p>
+      I did not hand-write most of this. I wrote <code>spec.md</code> and drove the
+      implementation through Cursor agents in one afternoon. The agent wrote a lot of
+      code, but the spec defined what counted as success.
+    </p>
+
+    <h3>cursor was good at</h3>
+    <ul>
+      <li>implementing file formats (90-byte records, MLP! binary layout)</li>
+      <li>writing C/Python glue and CMake setup</li>
+      <li>fixing compile errors and segfaults (AVX scope, buffer overflow)</li>
+      <li>running benchmark loops and pasting comparison tables</li>
+      <li>generating model variants (patch shrink, int8 export, sweeps)</li>
+    </ul>
+
+    <h3>I still had to</h3>
+    <ul>
+      <li>reject analytic fallback when the agent tried to hide rollout drift</li>
+      <li>define success metrics (98% one-step floor, then rollout for default pick)</li>
+      <li>decide latency vs stability tradeoffs (h12 fast, h24 default)</li>
+      <li>playtest feel and call out phasing the bench did not fully capture</li>
+      <li>notice one-step vs rollout confusion in early writeups</li>
+    </ul>
+
+    <h3>why this project fits agents well</h3>
+    <ul>
+      <li><strong>Closed loop with objective metrics.</strong> Record, train, bench, play. Every hypothesis ends in a number.</li>
+      <li><strong>Small surface area.</strong> ~2k lines of C, one MLP, one training script. Fits in context.</li>
+      <li><strong>Spec as source of truth.</strong> Fixed dt, no pytorch at runtime, binary export format.</li>
+      <li><strong>Embarrassingly parallel experiments.</strong> Each patch/architecture pivot is a prompt + bench run.</li>
+    </ul>
+
+    <h3>spec.md as the contract</h3>
+    <p>
+      Before any code landed, I wrote a spec: observation layout, record format,
+      model binary layout, accuracy floor, swap interface. When the agent added
+      collision fallback to hide drift, I rejected it against the spec and the real
+      problem surfaced.
+    </p>
+
+    <h3>prompts that moved the needle</h3>
+    <ul>
+      <li><em>"Implement the full pipeline from spec.md."</em> — greenfield in ~2 hours of agent time.</li>
+      <li><em>"305 us is too slow. Optimize inference without changing accuracy."</em> — ~50x in one iteration.</li>
+      <li><em>"Try shrinking the patch to 7x7, then 3x3. Sweep and bench each."</em></li>
+      <li><em>"Remove analytic fallback — pure neural only."</em></li>
+      <li><em>"Bench numbers don't match playtesting."</em> — found <code>sample_in[729]</code> overflow.</li>
+    </ul>
+
+    <h3>human vs agent split</h3>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>agent owned</th><th>I owned</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>C/Python/CMake edits, SIMD kernels, binary I/O</td><td>spec constraints, accuracy vs latency tradeoffs</td></tr>
+        <tr><td><code>cmake --build</code>, <code>--record</code>, <code>--bench</code>, sweeps</td><td>rejecting analytic fallback, picking h24 default</td></tr>
+        <tr><td>gdb segfault bisect, buffer overflow find</td><td>playtesting feel, calling out phasing</td></tr>
+        <tr><td>blog drafts, metric tables, reproduce commands</td><td>correcting one-step vs rollout confusion</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      End-to-end from empty repo to playable neural swap with documented benchmarks:
+      <em>one afternoon</em>. Without Cursor that is easily a week of setup and export glue.
+    </p>
+
+    <div class="callout">
+      the pattern: write a tight spec, keep the feedback loop machine-runnable, let the
+      agent own everything between "change PATCH_D to 3" and "here are the new bench numbers."
+    </div>
+
+    <hr>
+
+    <h2>reproduce</h2>
+
+    <pre><code>cd build &amp;&amp; cmake .. -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build .
+./voxel_parkour.exe --record 500000 --out ../data/train.bin
+
+python tools/train.py --sweep-stable --epochs 40   # h48, h64, h48x24 on 3x3 data
+
+./voxel_parkour.exe --bench ../models/model_q8_h24_p3.bin
+./voxel_parkour.exe
+
+# side-by-side video (planned):
+# ./voxel_parkour.exe --compare-video models/model_q8_h24_p3.bin --seed 123 --out side_by_side.mp4</code></pre>
+
+    <p>
+      Tab toggles analytic and neural physics mid-game. N reloads the model.
+      Game loads <code>model_q8_h24_p3.bin</code> first, then falls back through
+      h48x24, h64, and h48. Training takes ~13 min for the stable sweep on CPU;
+      <code>--log-every 5</code> prints ETA during training.
+    </p>
+
+    <hr>
+
+    <h2>what is next</h2>
+
+    <p>
+      Rollout is ~89% on the default model, not perfect. Phasing still happens in
+      play despite good one-step numbers. Likely next experiments: multi-step training
+      loss (teach stable trajectories, not single frames), or a lightweight depenetration
+      clamp after the neural step (not full analytic fallback). Residual learning
+      (predict a delta on top of analytic) is another path.
+    </p>
+
+    <div class="footer">
+      <p>code: voxel-game repo on ryanhub. questions: ryanalport@gmail.com</p>
+    </div>
+  </article>
+
+  <script>
+    const C = {
+      grid: '#2e2e2e', text: '#8a8680', fg: '#e8e4dc',
+      analytic: '#6ee7a8', h24: '#f4a261', h48: '#4a7fd4', h64: '#c77dff', h48x24: '#e76f6f',
+      orig: '#555', avx: '#888', mid: '#aaa', tiny: '#777', h12: '#b8b8b8'
+    };
+
+    function svgEl(tag, attrs, parent) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      if (parent) parent.appendChild(el);
+      return el;
+    }
+
+    function fmtUs(v) {
+      if (v >= 100) return Math.round(v) + ' us';
+      if (v >= 10) return v.toFixed(0) + ' us';
+      if (v >= 1) return v.toFixed(1) + ' us';
+      return v.toFixed(2) + ' us';
+    }
+
+    function drawProgressionChart(svg) {
+      const data = [
+        { label: 'analytic', val: 0.08, color: C.analytic },
+        { label: '3x3 h24', val: 0.95, color: C.h24 },
+        { label: '7x7 int8', val: 2.1, color: C.mid },
+        { label: 'tiny 32', val: 3.2, color: C.tiny },
+        { label: '64x64 avx', val: 6, color: C.avx },
+        { label: '128x128', val: 305, color: C.orig }
+      ];
+      const W = 680, H = 300;
+      const pad = { l: 72, r: 24, t: 32, b: 80 };
+      const log = v => Math.log10(Math.max(v, 0.01));
+      const minL = log(0.05), maxL = log(400);
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+      const barW = Math.min(56, plotW / data.length - 14);
+      const gap = plotW / data.length;
+
+      for (let i = 0; i <= 5; i++) {
+        const val = Math.pow(10, minL + (maxL - minL) * i / 5);
+        const y = pad.t + plotH - ((log(val) - minL) / (maxL - minL)) * plotH;
+        svgEl('line', { x1: pad.l, y1: y, x2: W - pad.r, y2: y, stroke: C.grid, 'stroke-width': 1 }, svg);
+        const lbl = val >= 100 ? Math.round(val) : val.toFixed(val < 1 ? 2 : 0);
+        svgEl('text', { x: pad.l - 8, y: y + 4, fill: C.text, 'text-anchor': 'end', 'font-size': 10, 'font-family': 'monospace' }, svg).textContent = lbl;
+      }
+
+      data.forEach((d, i) => {
+        const cx = pad.l + gap * i + gap / 2;
+        const y = pad.t + plotH - ((log(d.val) - minL) / (maxL - minL)) * plotH;
+        const h = pad.t + plotH - y;
+        svgEl('rect', {
+          x: cx - barW / 2, y, width: barW, height: Math.max(h, 2),
+          fill: d.color, opacity: 0.9, rx: 2
+        }, svg);
+        const labelY = y - 8;
+        svgEl('text', {
+          x: cx, y: labelY > pad.t ? labelY : y + 12,
+          fill: C.fg, 'text-anchor': 'middle',
+          'font-size': 9, 'font-family': 'monospace'
+        }, svg).textContent = fmtUs(d.val);
+        svgEl('text', {
+          x: cx, y: H - pad.b + 16, fill: C.fg, 'text-anchor': 'middle',
+          'font-size': 9, 'font-family': 'monospace'
+        }, svg).textContent = d.label;
+      });
+    }
+
+    function drawRolloutChart(svg) {
+      const models = [
+        { name: 'h24', oneStep: 98.7, rollout: 89.2, tunnel: 2.4, color: C.h24 },
+        { name: 'h48', oneStep: 98.7, rollout: 79.7, tunnel: 2.8, color: C.h48 },
+        { name: 'h64', oneStep: 98.7, rollout: 72.9, tunnel: 2.7, color: C.h64 },
+        { name: 'h48x24', oneStep: 98.7, rollout: 77.9, tunnel: 3.2, color: C.h48x24 }
+      ];
+      const W = 680, H = 300;
+      const pad = { l: 56, r: 24, t: 40, b: 68 };
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+      const groupW = plotW / models.length;
+      const minY = 70, maxY = 100;
+
+      for (let a = 70; a <= 100; a += 10) {
+        const y = pad.t + plotH - ((a - minY) / (maxY - minY)) * plotH;
+        svgEl('line', { x1: pad.l, y1: y, x2: W - pad.r, y2: y, stroke: C.grid, 'stroke-width': 1 }, svg);
+        svgEl('text', { x: pad.l - 6, y: y + 4, fill: C.text, 'text-anchor': 'end', 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = a;
+      }
+
+      models.forEach((m, i) => {
+        const gx = pad.l + i * groupW + groupW / 2;
+        const bw = groupW * 0.22;
+        const oneH = ((m.oneStep - minY) / (maxY - minY)) * plotH;
+        const rollH = ((m.rollout - minY) / (maxY - minY)) * plotH;
+        svgEl('rect', { x: gx - bw - 2, y: pad.t + plotH - oneH, width: bw, height: oneH, fill: C.analytic, opacity: 0.7, rx: 2 }, svg);
+        svgEl('rect', { x: gx + 2, y: pad.t + plotH - rollH, width: bw, height: rollH, fill: m.color, opacity: 0.9, rx: 2 }, svg);
+        svgEl('text', { x: gx, y: H - pad.b + 18, fill: C.fg, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'monospace' }, svg).textContent = m.name;
+        svgEl('text', { x: gx - bw / 2 - 2, y: pad.t + plotH - oneH - 4, fill: C.text, 'text-anchor': 'middle', 'font-size': 8, 'font-family': 'monospace' }, svg).textContent = m.oneStep.toFixed(1);
+        svgEl('text', { x: gx + bw / 2 + 2, y: pad.t + plotH - rollH - 4, fill: C.text, 'text-anchor': 'middle', 'font-size': 8, 'font-family': 'monospace' }, svg).textContent = m.rollout.toFixed(1);
+      });
+
+      let lx = pad.l;
+      svgEl('rect', { x: lx, y: 12, width: 10, height: 10, fill: C.analytic, opacity: 0.7 }, svg);
+      svgEl('text', { x: lx + 14, y: 21, fill: C.text, 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = 'one-step %';
+      lx += 95;
+      svgEl('rect', { x: lx, y: 12, width: 10, height: 10, fill: C.h24 }, svg);
+      svgEl('text', { x: lx + 14, y: 21, fill: C.text, 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = 'rollout %';
+    }
+
+    function drawTradeoffChart(svg) {
+      const models = [
+        { name: 'h24', step: 0.95, rollout: 89.2, color: C.h24 },
+        { name: 'h48', step: 1.79, rollout: 79.7, color: C.h48 },
+        { name: 'h64', step: 2.89, rollout: 72.9, color: C.h64 },
+        { name: 'h48x24', step: 2.38, rollout: 77.9, color: C.h48x24 }
+      ];
+      const W = 680, H = 300;
+      const pad = { l: 56, r: 24, t: 36, b: 56 };
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+      const minX = 0.5, maxX = 3.2;
+      const minY = 70, maxY = 92;
+
+      for (let i = 0; i <= 4; i++) {
+        const x = minX + (maxX - minX) * i / 4;
+        const px = pad.l + ((x - minX) / (maxX - minX)) * plotW;
+        svgEl('line', { x1: px, y1: pad.t, x2: px, y2: pad.t + plotH, stroke: C.grid, 'stroke-width': 1 }, svg);
+        svgEl('text', { x: px, y: H - pad.b + 16, fill: C.text, 'text-anchor': 'middle', 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = x.toFixed(1);
+      }
+      for (let a = 70; a <= 90; a += 5) {
+        const y = pad.t + plotH - ((a - minY) / (maxY - minY)) * plotH;
+        svgEl('line', { x1: pad.l, y1: y, x2: W - pad.r, y2: y, stroke: C.grid, 'stroke-width': 1 }, svg);
+        svgEl('text', { x: pad.l - 6, y: y + 4, fill: C.text, 'text-anchor': 'end', 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = a;
+      }
+
+      svgEl('text', { x: pad.l + plotW / 2, y: H - 6, fill: C.text, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'monospace' }, svg).textContent = 'neural step (us)';
+      svgEl('text', { x: 14, y: pad.t + plotH / 2, fill: C.text, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'monospace', transform: `rotate(-90 14 ${pad.t + plotH / 2})` }, svg).textContent = 'rollout %';
+
+      models.forEach(m => {
+        const px = pad.l + ((m.step - minX) / (maxX - minX)) * plotW;
+        const py = pad.t + plotH - ((m.rollout - minY) / (maxY - minY)) * plotH;
+        svgEl('circle', { cx: px, cy: py, r: 6, fill: m.color, opacity: 1, stroke: m.name === 'h24' ? C.fg : 'none', 'stroke-width': 2 }, svg);
+        svgEl('text', { x: px + 8, y: py - 4, fill: C.fg, 'font-size': 9, 'font-family': 'monospace' }, svg).textContent = m.name;
+      });
+    }
+
+    drawProgressionChart(document.getElementById('chart-progression'));
+    drawRolloutChart(document.getElementById('chart-rollout'));
+    drawTradeoffChart(document.getElementById('chart-tradeoff'));
+  </script>
+</body>
+</html>

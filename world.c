@@ -5,7 +5,13 @@ unsigned char world[WORLD_X][WORLD_Y][WORLD_Z];
 Player player;
 Vec3 start_pos;
 Vec3 goal_pos;
+int goal_vx, goal_vy, goal_vz;
 unsigned int map_seed;
+
+#define PLAYER_HEIGHT 1.8f
+#define PLAYER_WIDTH 0.6f
+
+static int player_collides_impl(Player *p);
 
 static int clamp_int(int v, int lo, int hi) {
     if (v < lo) return lo;
@@ -35,14 +41,6 @@ static void place_platform(int cx, int y, int cz, int sx, int sz, VoxelType type
                 world[x][y][z] = type;
 }
 
-static void place_goal_block(Vec3 pos) {
-    int gx = (int)pos.x;
-    int gy = (int)pos.y;
-    int gz = (int)pos.z;
-    if (gx >= 0 && gx < WORLD_X && gy >= 0 && gy < WORLD_Y && gz >= 0 && gz < WORLD_Z)
-        world[gx][gy][gz] = VOXEL_GOAL;
-}
-
 void generate_world(void) {
     clear_world();
 
@@ -50,7 +48,14 @@ void generate_world(void) {
     int last_sx = 3, last_sz = 3;
 
     place_platform(x, y, z, 3, 3, VOXEL_START);
-    start_pos = (Vec3){ x + 1.5f, y + 2.15f, z + 1.5f };
+    {
+        float top = (float)(y + 1);
+        start_pos = (Vec3){
+            x + 1.5f,
+            top + PLAYER_HEIGHT * 0.5f + 0.05f,
+            z + 1.5f
+        };
+    }
 
     for (int i = 0; i < 8; i++) {
         int dx_opts[] = { -3, -2, 2, 3 };
@@ -69,12 +74,51 @@ void generate_world(void) {
         place_platform(x, y, z, last_sx, last_sz, VOXEL_SOLID);
     }
 
-    goal_pos = (Vec3){
-        x + last_sx * 0.5f,
-        y + 1.0f,
-        z + last_sz * 0.5f
-    };
-    place_goal_block(goal_pos);
+    goal_vx = x + last_sx / 2;
+    goal_vy = y;
+    goal_vz = z + last_sz / 2;
+    if (goal_vx >= 0 && goal_vx < WORLD_X && goal_vy >= 0 && goal_vy < WORLD_Y &&
+        goal_vz >= 0 && goal_vz < WORLD_Z)
+        world[goal_vx][goal_vy][goal_vz] = VOXEL_GOAL;
+    goal_pos = (Vec3){ goal_vx + 0.5f, goal_vy + 0.5f, goal_vz + 0.5f };
+}
+
+void reset_player(void) {
+    player.vel = (Vec3){ 0 };
+    player.width = PLAYER_WIDTH;
+    player.height = PLAYER_HEIGHT;
+    player.pos = start_pos;
+    player.grounded = 0;
+    player.dead = 0;
+    player.won = 0;
+    for (int i = 0; i < 64 && player_collides_impl(&player); i++)
+        player.pos.y += 0.1f;
+}
+
+int check_goal(void) {
+    float pmin_x = player.pos.x - player.width * 0.5f;
+    float pmax_x = player.pos.x + player.width * 0.5f;
+    float pmin_y = player.pos.y - player.height * 0.5f;
+    float pmax_y = player.pos.y + player.height * 0.5f;
+    float pmin_z = player.pos.z - player.width * 0.5f;
+    float pmax_z = player.pos.z + player.width * 0.5f;
+
+    float gmin_x = (float)goal_vx;
+    float gmax_x = (float)(goal_vx + 1);
+    float gmin_y = (float)goal_vy;
+    float gmax_y = (float)(goal_vy + 1);
+    float gmin_z = (float)goal_vz;
+    float gmax_z = (float)(goal_vz + 1);
+
+    if (pmin_x < gmax_x && pmax_x > gmin_x &&
+        pmin_y < gmax_y && pmax_y > gmin_y &&
+        pmin_z < gmax_z && pmax_z > gmin_z) {
+        player.won = 1;
+        generate_world();
+        reset_player();
+        return 1;
+    }
+    return 0;
 }
 
 int is_solid_voxel(int x, int y, int z) {
@@ -85,6 +129,10 @@ int is_solid_voxel(int x, int y, int z) {
 }
 
 int player_collides(Player *p) {
+    return player_collides_impl(p);
+}
+
+static int player_collides_impl(Player *p) {
     float min_x = p->pos.x - p->width * 0.5f;
     float max_x = p->pos.x + p->width * 0.5f;
     float min_y = p->pos.y - p->height * 0.5f;
@@ -101,17 +149,4 @@ int player_collides(Player *p) {
             for (int iz = iz0; iz <= iz1; iz++)
                 if (is_solid_voxel(ix, iy, iz)) return 1;
     return 0;
-}
-
-void reset_player(void) {
-    player.pos = start_pos;
-    player.vel = (Vec3){ 0 };
-    player.width = 0.6f;
-    player.height = 1.8f;
-    player.grounded = 0;
-    player.dead = 0;
-    player.won = 0;
-
-    while (player_collides(&player))
-        player.pos.y += 0.05f;
 }

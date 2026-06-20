@@ -1,7 +1,5 @@
 build/
 data/
 models/
-__pycache__/
-*.pyc
 *.exe
 *.o
