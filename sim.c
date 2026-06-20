@@ -18,6 +18,7 @@
 typedef struct {
     int hold_frames;
     int policy;
+    int edge_dir;
     InputState cur;
 } InputPolicy;
 
@@ -26,13 +27,48 @@ static InputState empty_input(void) {
     return in;
 }
 
+static void set_edge_dir(InputState *in, int dir) {
+    *in = empty_input();
+    if (dir == 0) in->forward = 1;
+    else if (dir == 1) in->back = 1;
+    else if (dir == 2) in->left = 1;
+    else in->right = 1;
+}
+
 static InputState random_input_policy(InputPolicy *pol) {
     if (pol->hold_frames <= 0) {
-        pol->hold_frames = 3 + rand() % 13;
-        pol->policy = rand() % 100;
         pol->cur = empty_input();
 
-        if (pol->policy < 50) {
+        /* 10% idle when grounded (reduced from v2). */
+        if (player.grounded && (rand() % 100) < 10) {
+            pol->policy = -1;
+            pol->hold_frames = 20 + rand() % 41;
+            return pol->cur;
+        }
+
+        /* 40% fall / drift while airborne. */
+        if (!player.grounded && (rand() % 100) < 40) {
+            pol->policy = -3;
+            pol->hold_frames = 8 + rand() % 25;
+            if (rand() % 4 == 0) {
+                int dir = rand() % 4;
+                set_edge_dir(&pol->cur, dir);
+            }
+            return pol->cur;
+        }
+
+        pol->hold_frames = 3 + rand() % 13;
+        pol->policy = rand() % 100;
+
+        if (pol->policy < 10) {
+            pol->hold_frames = 20 + rand() % 41;
+        } else if (pol->policy < 25) {
+            /* Walk toward platform edge ~15%. */
+            pol->policy = -2;
+            pol->edge_dir = rand() % 4;
+            pol->hold_frames = 20 + rand() % 61;
+            set_edge_dir(&pol->cur, pol->edge_dir);
+        } else if (pol->policy < 55) {
             pol->cur.forward = rand() % 2;
             pol->cur.back = rand() % 2;
             pol->cur.left = rand() % 2;
@@ -40,18 +76,32 @@ static InputState random_input_policy(InputPolicy *pol) {
             pol->cur.jump = rand() % 5 == 0;
         } else if (pol->policy < 80) {
             int dir = rand() % 4;
-            pol->cur.forward = dir == 0;
-            pol->cur.back = dir == 1;
-            pol->cur.left = dir == 2;
-            pol->cur.right = dir == 3;
+            set_edge_dir(&pol->cur, dir);
             pol->cur.jump = rand() % 8 == 0;
         } else if (pol->policy < 95) {
             pol->cur.forward = 1;
             pol->cur.jump = rand() % 3 == 0;
         }
     }
+
+    if (pol->policy == -2) {
+        set_edge_dir(&pol->cur, pol->edge_dir);
+    }
+
     pol->hold_frames--;
     return pol->cur;
+}
+
+static void settle_player(int frames) {
+    InputState none = empty_input();
+    for (int i = 0; i < frames; i++)
+        physics_step(&player, none, FIXED_DT);
+}
+
+static int record_is_idle_grounded(const TrainingRecord *rec) {
+    int idle = rec->input[0] == 0 && rec->input[1] == 0 && rec->input[2] == 0 &&
+               rec->input[3] == 0 && rec->input[4] == 0;
+    return idle && rec->grounded && rec->target_grounded;
 }
 
 static double time_us(void) {
@@ -67,6 +117,10 @@ static double time_us(void) {
 #endif
 }
 
+static int record_is_airborne(const TrainingRecord *rec) {
+    return !rec->grounded;
+}
+
 int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_seed) {
     FILE *f = fopen(out_path, "wb");
     if (!f) {
@@ -74,10 +128,10 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
         return 1;
     }
 
-    DatasetHeader hdr = { DATASET_MAGIC, 1, (uint16_t)sizeof(TrainingRecord) };
+    DatasetHeader hdr = { DATASET_MAGIC, DATASET_VERSION, (uint16_t)sizeof(TrainingRecord) };
     fwrite(&hdr, sizeof(hdr), 1, f);
 
-    InputPolicy pol = { 0, 0, empty_input() };
+    InputPolicy pol = { 0, 0, 0, empty_input() };
     int episode_steps = 0;
     int written = 0;
 
@@ -85,6 +139,10 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
     srand((int)map_seed);
     generate_world();
     reset_player();
+    settle_player(60);
+
+    int idle_grounded_count = 0;
+    int airborne_count = 0;
 
     while (written < num_samples) {
         InputState input = random_input_policy(&pol);
@@ -95,6 +153,8 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
 
         TrainingRecord rec;
         make_training_record(&before, input, &after, &rec);
+        if (record_is_idle_grounded(&rec)) idle_grounded_count++;
+        if (record_is_airborne(&rec)) airborne_count++;
         fwrite(&rec, sizeof(rec), 1, f);
         written++;
         episode_steps++;
@@ -104,6 +164,7 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
             srand((int)map_seed);
             generate_world();
             reset_player();
+            settle_player(60);
             pol.hold_frames = 0;
             episode_steps = 0;
         }
@@ -111,6 +172,10 @@ int sim_record_dataset(const char *out_path, int num_samples, unsigned int base_
 
     fclose(f);
     printf("Recorded %d samples to %s\n", written, out_path);
+    printf("Idle+grounded samples: %d (%.1f%%)\n", idle_grounded_count,
+           100.0f * idle_grounded_count / (written > 0 ? written : 1));
+    printf("Airborne samples: %d (%.1f%%)\n", airborne_count,
+           100.0f * airborne_count / (written > 0 ? written : 1));
     return 0;
 }
 
@@ -129,7 +194,7 @@ int sim_benchmark(const char *model_path, int steps_per_episode, int num_episode
         generate_world();
         reset_player();
 
-        InputPolicy pol = { 0, 0, empty_input() };
+        InputPolicy pol = { 0, 0, 0, empty_input() };
         Player analytic = player;
         Player neural_p = player;
 
@@ -174,10 +239,12 @@ int sim_benchmark(const char *model_path, int steps_per_episode, int num_episode
     printf("Tunnel (neural):      %d / %d steps (non-grounded overlap)\n", tunnel_neural, total_steps);
     printf("Avg analytic step:    %.3f us\n", t_analytic / total_steps);
     printf("Avg neural step:      %.3f us\n", t_neural / total_steps);
+    printf("Inference kernel:     %s\n", neural_kernel_name());
+    printf("Model quant:          %s\n", neural_quant_name());
 
-    float sample_in[INPUT_DIM] = { 0 };
+    float sample_in[INPUT_DIM_MAX] = { 0 };
     float sample_out[OUTPUT_DIM] = { 0 };
-    sample_in[729] = 0.5f;
+    sample_in[patch_input_dim(obs_get_patch_n()) - INPUT_EXTRA] = 0.5f;
     double fwd_only = neural_forward_only_us(sample_in, sample_out, 10000);
     printf("Forward-only (10k avg): %.3f us\n", fwd_only);
 

@@ -15,17 +15,42 @@
 #define GRAVITY -30.0f
 #define JUMP_SPEED 10.0f
 
+#define PATCH_MAX 9
+#define PATCH_R_MAX 4
+#define INPUT_EXTRA 12
+#define INPUT_DIM_MAX (PATCH_MAX * PATCH_MAX * PATCH_MAX + INPUT_EXTRA)
+#define OUTPUT_DIM 7
+
+/* Legacy defaults (full 9³ patch). */
 #define PATCH_R 4
 #define PATCH_D 9
-#define VOXEL_COUNT (PATCH_D * PATCH_D * PATCH_D)
-
 #define INPUT_DIM 741
-#define OUTPUT_DIM 7
 #define HIDDEN1 128
 #define HIDDEN2 128
 
+static inline int patch_input_dim(int patch_n) {
+    return patch_n * patch_n * patch_n + INPUT_EXTRA;
+}
+
+static inline int patch_from_input_dim(int input_dim) {
+    int v = input_dim - INPUT_EXTRA;
+    for (int n = 2; n <= PATCH_MAX; n++)
+        if (n * n * n == v) return n;
+    return PATCH_MAX;
+}
+
 #define DATASET_MAGIC 0x4B435056u /* VPCK */
+#define DATASET_VERSION 2
+#define DATASET_RECORD_SIZE 804
 #define MODEL_MAGIC 0x214D4C50u   /* MLP! */
+#define MODEL_VERSION_FP32 1u
+#define MODEL_VERSION_QUANT 2u
+
+/* Quantized weight schemes (model version 2). Activations stay FP32 (W8A32 / W4A32). */
+#define QUANT_INT8_ROW   1u  /* per output-row symmetric int8 + float scale */
+#define QUANT_INT8_LAYER 2u  /* single scale per weight tensor */
+#define QUANT_INT4_ROW   3u  /* per output-row symmetric int4 (packed) + float scale */
+#define QUANT_FP16       4u  /* IEEE half weights; expanded to FP32 at load */
 
 typedef enum {
     VOXEL_EMPTY = 0,
@@ -57,7 +82,7 @@ typedef struct {
 } InputState;
 
 typedef struct {
-    unsigned char voxels[PATCH_D][PATCH_D][PATCH_D];
+    unsigned char voxels[PATCH_MAX][PATCH_MAX][PATCH_MAX];
     float offset_x, offset_y, offset_z;
     float vx, vy, vz;
     int grounded;
@@ -84,6 +109,7 @@ typedef struct {
     float target_vel[3];
     uint8_t target_grounded;
     uint32_t seed;
+    float pos_before[3];
 }
 #ifdef __GNUC__
 __attribute__((packed))

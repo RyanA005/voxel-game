@@ -1,476 +1,206 @@
-Simple Raylib Voxel Parkour Engine Spec
-Goal
+# Neural Voxel Parkour — Spec
 
-Build a small C + raylib 3D voxel parkour prototype.
+A small C + raylib 3D voxel parkour prototype with **pure neural physics** — no analytic collision fallback at runtime.
 
-The game should generate a new fixed-size 16×16 parkour world every time it starts. The player is an AABB/cube character that can move, jump, fall, collide with blocks, die, and reach a goal.
+---
 
-This is the foundation for later replacing the physics_step() function with a neural network.
+## Goal
 
-Tech
+Generate a fixed 16×16×16 parkour world on every launch. The player is an AABB character that moves, jumps, falls, collides, dies, and reaches a goal — driven entirely by a learned MLP at play time.
 
-Use:
+Analytic `physics_step()` remains as a **teacher** for data recording and benchmarks only.
 
-C
-raylib
-single main.c if possible
+---
 
-Optional structure:
+## Tech Stack
 
-/src
-  main.c
-  world.c/.h
-  player.c/.h
-  physics.c/.h
-  logging.c/.h
+| Component | Choice |
+|-----------|--------|
+| Language | C99 |
+| Rendering | raylib 5.x (CMake FetchContent) |
+| ML training | Python 3 + PyTorch |
+| Inference | Pure C MLP (`neural.c`), weights in `models/*.bin` |
+| Timestep | Fixed `dt = 1/60` s everywhere |
 
-But for the first prototype, one main.c is acceptable.
+### Source layout
 
-World
+```
+main.c           Game loop, CLI modes, rendering
+world.c/.h       Voxel map, generation, collision queries, goal
+physics.c/.h     Analytic teacher physics (recording + Tab toggle)
+observation.c/.h 9³ patch + feature packing
+neural.c/.h      Model load, forward pass, neural_physics_step
+sim.c/.h         Headless record + rollout benchmark
+tools/train.py   Dataset load, rollout training, export
+tools/benchmark.py  One-step + C rollout metrics
+common.h         Shared types and constants
+```
 
-Use a fixed voxel map:
+---
 
+## World
+
+```c
 #define WORLD_X 16
 #define WORLD_Y 16
 #define WORLD_Z 16
+```
 
-typedef enum {
-    VOXEL_EMPTY = 0,
-    VOXEL_SOLID = 1,
-    VOXEL_START = 2,
-    VOXEL_GOAL  = 3,
-    VOXEL_HAZARD = 4
-} VoxelType;
+**Axes:** x = left/right, y = up/down, z = forward/back. Each voxel is a 1×1×1 cube.
 
-static unsigned char world[WORLD_X][WORLD_Y][WORLD_Z];
+**Voxel types:**
 
-Coordinate convention:
+| Value | Name | Color |
+|-------|------|-------|
+| 0 | EMPTY | — |
+| 1 | SOLID | gray |
+| 2 | START | blue |
+| 3 | GOAL | green |
+| 4 | HAZARD | red |
 
-x = left/right
-y = vertical
-z = forward/back
+**Generation:** random-walk platform path — start platform, 8 intermediate platforms, goal block at final platform center. Regenerated on launch and on win/reset (`R`).
 
-Each voxel is a 1×1×1 cube.
+**Bounds:** x/z out of map = solid wall. `y < -4` = death (reset player).
 
-The world should be regenerated on every program start.
+---
 
-World Generation
+## Player
 
-Generate simple parkour maps, not random noise.
+- AABB: width `0.6`, height `1.8`
+- `pos` = body center (not feet)
+- Spawn: platform top + half height + clearance; bumped up if overlapping solids
+- Goal: XZ overlap with goal block + (voxel overlap OR feet on goal surface)
 
-Requirements
+---
 
-Every generated world should have:
+## Controls
 
-a start platform
-a goal platform
-a chain of reachable platforms
-some gaps
-some height changes
-a death plane below
-Simple Generator
+| Key | Action |
+|-----|--------|
+| W/A/S/D | Move (−Z / −X / +Z / +X) |
+| Space | Jump |
+| R | New map |
+| Tab | Toggle analytic ↔ neural physics |
+| N | Reload model (fatal if missing) |
+| Esc | Quit |
 
-Use a random-walk platform path.
+---
 
-Pseudo:
+## Physics
 
-void generate_world(void) {
-    clear_world();
+### Teacher (analytic)
 
-    int x = 2;
-    int y = 2;
-    int z = 2;
+`physics_step(Player *p, InputState input, float dt)` — axis-separated AABB integration with friction, gravity, jump, and per-axis collision resolution.
 
-    place_platform(x, y, z, 3, 3);
+Constants: `MOVE_ACCEL=35`, `MAX_SPEED=6`, `FRICTION=12`, `GRAVITY=-30`, `JUMP_SPEED=10`.
 
-    start_pos = (Vector3){x + 0.5f, y + 2.0f, z + 0.5f};
+### Runtime (neural)
 
-    for (int i = 0; i < 8; i++) {
-        int dx = random choice from {-3, -2, 2, 3};
-        int dz = random choice from {-3, -2, 2, 3};
-        int dy = random choice from {-1, 0, 1};
+`neural_physics_step(Player *p, InputState input, float dt)`:
 
-        x = clamp(x + dx, 2, WORLD_X - 4);
-        z = clamp(z + dz, 2, WORLD_Z - 4);
-        y = clamp(y + dy, 1, 8);
+1. Build 741-d observation from local 9³ voxel patch + offset + velocity + grounded + keys
+2. MLP forward → 7 outputs: `Δx, Δy, Δz, vx', vy', vz', grounded'`
+3. Apply directly to player state
 
-        place_platform(x, y, z, random 2..4, random 2..4);
-    }
+**No fallbacks.** Missing model = fatal exit. No silent revert to analytic physics.
 
-    goal_pos = last platform center;
-    place_goal_block(goal_pos);
-}
-Platform Placement
-void place_platform(int cx, int y, int cz, int sx, int sz);
+### Model file (`models/*.bin`)
 
-This should fill solid blocks:
+```
+magic, version
+input_dim, hidden1, hidden2, output_dim
+input_mean[], input_std[]
+output_mean[], output_std[]
+W1, b1, W2, b2, W3, b3
+```
 
-x in cx..cx+sx
-z in cz..cz+sz
-at height y
+C loader reads hidden sizes dynamically (supports 128×128 baseline or 256×256 rollout model).
 
-Optional: make platforms one block thick.
+---
 
-Player
+## Observation & training target
 
-Use AABB physics.
+**Input (741 for 9³):** `voxels[n³]` (type/4) + offset(3) + vel(3, normalized) + grounded + keys(5)
 
-typedef struct {
-    Vector3 pos;
-    Vector3 vel;
+Variable patch sizes **2³–9³** supported: center-crop from 9³ recordings at train time; C runtime sets patch from `input_dim` in model file.
 
-    float width;
-    float height;
+```bash
+python tools/train.py --patch 7 --out models/patch_7.bin ...
+python tools/patch_sweep.py   # trains + benchmarks 9³…2³ (results → progress-log.md)
+python tools/bench_all_models.py   # all models vs analytic (results → progress-log.md)
+```
 
-    int grounded;
-    int dead;
-    int won;
-} Player;
+**Target (7):** `Δpos(3)` + `next_vel(3)` + `next_grounded`
 
-Initial values:
+**Dataset:** binary `data/train.bin`, packed `TrainingRecord` (792 bytes), header magic `VPCK`.
 
-player.pos = start_pos;
-player.vel = (Vector3){0};
-player.width = 0.6f;
-player.height = 1.8f;
-player.grounded = 0;
-player.dead = 0;
-player.won = 0;
+Recorded headlessly:
 
-The player’s pos should represent the center of the player body, not the feet.
+```bash
+./build/voxel_parkour.exe --record 500000 --out data/train.bin
+```
 
-Input
-typedef struct {
-    int forward;
-    int back;
-    int left;
-    int right;
-    int jump;
-    int reset;
-} InputState;
+**Dataset v2:** idle stand-still policy (~15% + extra when grounded), 60-frame settle at spawn, sanitized flat-rest targets for idle+grounded rows. Train with `--idle-weight 4.0`.
 
-Controls:
+---
 
-W = forward
-S = back
-A = left
-D = right
-Space = jump
-R = regenerate/reset
-Esc = quit
+## Training
 
-For v0, use fixed world-relative movement:
+```bash
+# Baseline one-step (128×128)
+python tools/train.py --data data/train.bin --out models/model.bin \
+  --hidden1 128 --hidden2 128 --no-rollout --epochs 25
 
-W = negative Z
-S = positive Z
-A = negative X
-D = positive X
+# Rollout + larger model
+python tools/train.py --data data/train.bin --out models/model_rollout.bin \
+  --hidden1 256 --hidden2 256 --rollout-steps 8 --rollout-weight 8.0 --epochs 30
 
-No mouse look required yet.
+# v2 — rollout + idle-weight (after re-record)
+python tools/train.py --data data/train.bin --out models/model_rollout_v2.bin \
+  --hidden1 256 --hidden2 256 --rollout-steps 8 --idle-weight 4.0 --epochs 30
+```
 
-Physics
+**Rollout loss:** sample consecutive episode windows; per-step MSE + accumulated Δpos MSE over K frames (teacher-forced observations). Val split by episode seed.
 
-The entire movement system should live in one replaceable function:
+Logs include timestamps and ETA per batch/epoch.
 
-void physics_step(Player *p, InputState input, float dt);
+---
 
-This is the function that will eventually become:
+## CLI modes
 
-void neural_physics_step(Player *p, InputState input, float dt);
-Constants
-#define MOVE_ACCEL 35.0f
-#define MAX_SPEED 6.0f
-#define FRICTION 12.0f
-#define GRAVITY -30.0f
-#define JUMP_SPEED 10.0f
-Physics Step
+| Command | Purpose |
+|---------|---------|
+| `./voxel_parkour` | Game (requires `--model`, default `models/model.bin`) |
+| `--record N --out FILE` | Headless dataset capture |
+| `--bench MODEL` | Compare neural vs analytic rollout |
 
-Pseudo:
+---
 
-void physics_step(Player *p, InputState input, float dt) {
-    float ax = 0.0f;
-    float az = 0.0f;
+## Rendering
 
-    if (input.forward) az -= MOVE_ACCEL;
-    if (input.back)    az += MOVE_ACCEL;
-    if (input.left)    ax -= MOVE_ACCEL;
-    if (input.right)   ax += MOVE_ACCEL;
+Third-person camera offset `(+8, +7, +8)` from player. Cube voxels + wireframes. Orange player AABB. HUD: controls, seed, physics mode.
 
-    p->vel.x += ax * dt;
-    p->vel.z += az * dt;
+---
 
-    apply_horizontal_friction(p, dt);
-    clamp_horizontal_speed(p, MAX_SPEED);
+## Benchmarking
 
-    if (input.jump && p->grounded) {
-        p->vel.y = JUMP_SPEED;
-        p->grounded = 0;
-    }
+See `progress-log.md` for all benchmark numbers and model comparison tables.
 
-    p->vel.y += GRAVITY * dt;
+```bash
+python tools/benchmark.py
+./build/voxel_parkour.exe --bench models/model_rollout.bin
+```
 
-    p->grounded = 0;
+Track one-step RMSE, rollout drift, grounded accuracy, tunnel rate, inference µs.
 
-    move_axis(p, 0, p->vel.x * dt);
-    move_axis(p, 1, p->vel.y * dt);
-    move_axis(p, 2, p->vel.z * dt);
-}
-Axis Collision
+---
 
-Use simple axis-separated AABB resolution.
+## Explicit non-goals
 
-void move_axis(Player *p, int axis, float amount);
+Textures, chunk meshes, lighting polish, mouse look, enemies, menus, save/load, complex generation, **analytic collision at runtime**.
 
-Process:
+---
 
-1. Move player along one axis.
-2. Check if player AABB overlaps any solid voxel.
-3. If collision:
-   - undo movement incrementally or snap back
-   - zero velocity on that axis
-   - if axis is Y and player was moving downward, set grounded = 1
+## Project log
 
-Simple implementation can just move, check collision, and revert:
-
-float old = get_axis(p->pos, axis);
-set_axis(&p->pos, axis, old + amount);
-
-if (player_collides(p)) {
-    set_axis(&p->pos, axis, old);
-
-    if (axis == 0) p->vel.x = 0;
-    if (axis == 1) {
-        if (p->vel.y < 0) p->grounded = 1;
-        p->vel.y = 0;
-    }
-    if (axis == 2) p->vel.z = 0;
-}
-
-This is not perfect, but good enough for v0.
-
-Collision Helpers
-int is_solid_voxel(int x, int y, int z);
-int player_collides(Player *p);
-
-player_collides() should compute the player AABB:
-
-min_x = pos.x - width/2
-max_x = pos.x + width/2
-min_y = pos.y - height/2
-max_y = pos.y + height/2
-min_z = pos.z - width/2
-max_z = pos.z + width/2
-
-Then check all voxels overlapped by the AABB.
-
-Out-of-bounds should be treated as solid for sides/bottom if useful, or empty with death plane. Simpler:
-
-outside x/z bounds = solid wall
-below y < -4 = death
-above map = empty
-Death and Win
-
-Death:
-
-if (player.pos.y < -4.0f) {
-    reset_player();
-}
-
-Goal:
-
-If player overlaps goal voxel:
-
-player.won = 1;
-generate_world();
-reset_player();
-
-For simplicity, the goal can be drawn as a green cube sitting on the final platform.
-
-Rendering
-
-Use raylib 3D.
-
-Camera
-
-Third-person fixed follow camera:
-
-Camera3D camera = {0};
-
-camera.position = (Vector3){
-    player.pos.x + 8.0f,
-    player.pos.y + 7.0f,
-    player.pos.z + 8.0f
-};
-
-camera.target = player.pos;
-camera.up = (Vector3){0, 1, 0};
-camera.fovy = 60.0f;
-camera.projection = CAMERA_PERSPECTIVE;
-
-Update every frame.
-
-Draw World
-
-Loop through all voxels:
-
-for x
-  for y
-    for z
-      if world[x][y][z] != EMPTY:
-        DrawCube(...)
-        DrawCubeWires(...)
-
-Colors:
-
-solid = gray
-start = blue
-goal = green
-hazard = red
-player = orange/red
-
-Draw cube at voxel center:
-
-Vector3 center = { x + 0.5f, y + 0.5f, z + 0.5f };
-DrawCube(center, 1, 1, 1, color);
-
-Draw player:
-
-DrawCube(player.pos, player.width, player.height, player.width, RED);
-DrawCubeWires(player.pos, player.width, player.height, player.width, BLACK);
-
-Draw basic UI text:
-
-WASD move | Space jump | R reset
-Map seed: <seed>
-Main Loop
-int main(void) {
-    InitWindow(1280, 720, "Neural Voxel Parkour");
-    SetTargetFPS(60);
-
-    srand(time(NULL));
-    generate_world();
-    reset_player();
-
-    while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
-        if (dt > 1.0f / 30.0f) dt = 1.0f / 30.0f;
-
-        InputState input = read_input();
-
-        if (input.reset) {
-            generate_world();
-            reset_player();
-        }
-
-        physics_step(&player, input, dt);
-
-        if (player.pos.y < -4.0f) {
-            reset_player();
-        }
-
-        check_goal();
-
-        update_camera();
-
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-
-        BeginMode3D(camera);
-        draw_world();
-        draw_player();
-        EndMode3D();
-
-        DrawText("WASD move | Space jump | R new map", 20, 20, 20, DARKGRAY);
-
-        EndDrawing();
-    }
-
-    CloseWindow();
-    return 0;
-}
-Neural Prep
-
-Even before training, design the code so every tick can produce a training example.
-
-Observation
-
-Eventually log:
-
-local voxel patch around player
-player offset inside current voxel
-velocity
-grounded
-input keys
-
-For v0, use a 9×9×9 patch:
-
-#define PATCH_R 4
-#define PATCH_D 9
-
-Observation fields:
-
-voxels[9][9][9]
-offset_x
-offset_y
-offset_z
-vx
-vy
-vz
-grounded
-forward
-back
-left
-right
-jump
-
-Target:
-
-dx
-dy
-dz
-next_vx
-next_vy
-next_vz
-next_grounded
-
-Where:
-
-dx = after.pos.x - before.pos.x;
-dy = after.pos.y - before.pos.y;
-dz = after.pos.z - before.pos.z;
-Required Seam
-
-Make sure this call exists cleanly:
-
-Player before = player;
-physics_step(&player, input, dt);
-Player after = player;
-
-Later:
-
-log_training_sample(before, input, after);
-Success Criteria
-
-The prototype is “done” when:
-
-A new 16×16×16 voxel parkour map appears every launch
-The player can move with WASD
-The player can jump
-The player collides with blocks
-The player can fall and reset
-The player can reach a goal
-The map is simple but playable
-The physics pass is isolated in physics_step()
-
-Do not add:
-
-textures
-mesh chunks
-lighting polish
-mouse look
-enemies
-menus
-saving/loading
-complex generation
-
-The point is to create the smallest possible real engine that can later produce training data for a neural player-physics model.
+See `progress-log.md` for full development history, expectation changes, and benchmark timeline.
