@@ -95,7 +95,7 @@ void reset_player(void) {
         player.pos.y += 0.1f;
 }
 
-int check_goal(void) {
+static int player_touches_goal(void) {
     float pmin_x = player.pos.x - player.width * 0.5f;
     float pmax_x = player.pos.x + player.width * 0.5f;
     float pmin_y = player.pos.y - player.height * 0.5f;
@@ -103,16 +103,29 @@ int check_goal(void) {
     float pmin_z = player.pos.z - player.width * 0.5f;
     float pmax_z = player.pos.z + player.width * 0.5f;
 
-    float gmin_x = (float)goal_vx;
-    float gmax_x = (float)(goal_vx + 1);
-    float gmin_y = (float)goal_vy;
-    float gmax_y = (float)(goal_vy + 1);
-    float gmin_z = (float)goal_vz;
-    float gmax_z = (float)(goal_vz + 1);
+    float gx0 = (float)goal_vx;
+    float gx1 = gx0 + 1.0f;
+    float gy0 = (float)goal_vy;
+    float gy1 = gy0 + 1.0f;
+    float gz0 = (float)goal_vz;
+    float gz1 = gz0 + 1.0f;
 
-    if (pmin_x < gmax_x && pmax_x > gmin_x &&
-        pmin_y < gmax_y && pmax_y > gmin_y &&
-        pmin_z < gmax_z && pmax_z > gmin_z) {
+    int xz_overlap = pmin_x < gx1 && pmax_x > gx0 && pmin_z < gz1 && pmax_z > gz0;
+    if (!xz_overlap) return 0;
+
+    /* Inside or against the voxel (jump through, walk into side). */
+    if (pmin_y < gy1 && pmax_y > gy0) return 1;
+
+    /* Standing on top: feet on the goal block surface. */
+    float feet_y = pmin_y;
+    float goal_top = gy1;
+    if (feet_y >= goal_top - 0.25f && feet_y <= goal_top + 0.35f) return 1;
+
+    return 0;
+}
+
+int check_goal(void) {
+    if (player_touches_goal()) {
         player.won = 1;
         generate_world();
         reset_player();
