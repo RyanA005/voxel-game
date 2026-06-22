@@ -147,7 +147,7 @@ def render_table(rows: list[dict]) -> str:
 
 
 def update_progress_log(table: str) -> None:
-    log_path = ROOT / "progress-log.md"
+    log_path = ROOT / "docs" / "progress-log.md"
     text = log_path.read_text(encoding="utf-8")
     if PHASE13_START not in text:
         insert = (

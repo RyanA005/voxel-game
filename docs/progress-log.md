@@ -623,9 +623,9 @@ v0 engine only
 
 | File                       | Role                                    |
 | -------------------------- | --------------------------------------- |
-| `progress-log.md`          | **This file** — timeline, benchmarks, commands |
+| `docs/progress-log.md`     | **This file** — timeline, benchmarks, commands |
 | `neural_simd.c`            | AVX2-FMA FP32 inference kernels + CPU dispatch |
-| `spec.md`                  | Living architecture spec                |
+| `docs/spec.md`             | living architecture spec                |
 | `models/model.bin`         | 128×128 one-step baseline (pure neural) |
 | `models/model_rollout.bin` | 256×256 rollout-trained |
 | `models/model_rollout_v2.bin` | 9³ 256×256 — best full-context |

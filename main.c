@@ -11,7 +11,7 @@
 #include <time.h>
 
 static PhysicsMode physics_mode = PHYSICS_ANALYTIC;
-static const char *model_path = "models/model.bin";
+static const char *model_path = "models/patch3/256_rollout8_idle4.bin";
 
 static Color voxel_color(unsigned char t) {
     switch (t) {

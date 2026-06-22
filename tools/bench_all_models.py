@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark all models vs analytic teacher; print ranked table for progress-log.md."""
+"""Benchmark all models vs analytic teacher; print ranked table for docs/progress-log.md."""
 
 import re
 import struct
@@ -150,14 +150,14 @@ def build_phase12_table(rows: list[dict], analytic_us: float, v2_us: float | Non
 
 
 def update_progress_log(rows: list[dict], analytic_us: float, v2_us: float | None) -> None:
-    log_path = ROOT / "progress-log.md"
+    log_path = ROOT / "docs" / "progress-log.md"
     if not log_path.exists():
         return
     text = log_path.read_text(encoding="utf-8")
     start = text.find(PHASE12_START)
     end = text.find(PHASE12_END)
     if start == -1 or end == -1:
-        print(f"\nMissing {PHASE12_START} markers in progress-log.md", flush=True)
+        print(f"\nMissing {PHASE12_START} markers in docs/progress-log.md", flush=True)
         return
     end += len(PHASE12_END)
     new_block = build_phase12_table(rows, analytic_us, v2_us)
@@ -225,7 +225,7 @@ def main():
         f"- Fastest inference: `{short_label(fastest['path'])}` -- {fastest['neural_us']:.1f} us/step",
         f"- Fidelity anchor: patch3/{ANCHOR} (marked *)",
         "",
-        "Regenerate: python tools/bench_all_models.py (updates Phase 12 in progress-log.md)",
+        "Regenerate: python tools/bench_all_models.py (updates Phase 12 in docs/progress-log.md)",
     ]
     print("\n".join(lines))
 

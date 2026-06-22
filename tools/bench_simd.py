@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark AVX2 SIMD kernels vs pre-SIMD baselines; update Phase 14 in progress-log."""
+"""Benchmark AVX2 SIMD kernels vs pre-SIMD baselines; update Phase 14 in docs/progress-log."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def render_table(rows: list[dict]) -> str:
 
 
 def update_log(table: str) -> None:
-    log = ROOT / "progress-log.md"
+    log = ROOT / "docs" / "progress-log.md"
     text = log.read_text(encoding="utf-8")
     if PHASE14_START not in text:
         block = (

@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neural voxel engine</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --fg: #e8e4dc;
+      --muted: #8a8680;
+      --accent: #6ee7a8;
+      --accent2: #f4a261;
+      --card: #1a1a1a;
+      --border: #2e2e2e;
+      --code-bg: #141414;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+      font-size: 15px;
+      line-height: 1.75;
+      padding: 2rem 1.25rem 4rem;
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; }
+    .back2 {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-block;
+      margin-bottom: 2.5rem;
+    }
+
+    .back {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-block;
+      margin-bottom: 2.5rem;
+    }
+    .back:hover { color: var(--accent); }
+
+    h1 {
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    .note {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      padding: 0.85rem 1rem;
+      margin: 1.5rem 0;
+      font-size: 14px;
+    }
+
+    .note strong { color: var(--accent2); font-weight: 400; }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1.25rem 0;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .table-wrap table { margin: 0; min-width: 480px; }
+
+    .meta { color: var(--muted); font-size: 13px; margin-bottom: 2rem; }
+    .meta span { margin-right: 1rem; }
+
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 400;
+      color: var(--accent);
+      margin: 2rem 0 0.75rem;
+      text-transform: lowercase;
+    }
+
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--fg);
+      margin: 1.75rem 0 0.5rem;
+      text-transform: lowercase;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    a { color: var(--accent2); }
+    a:hover { text-decoration: none; }
+
+    em { color: var(--muted); font-style: normal; }
+
+    .figure {
+      background: var(--card);
+      border: 1px solid var(--border);
+      margin: 1.75rem 0;
+      overflow: hidden;
+    }
+
+    .figure img, .figure svg {
+      display: block;
+      width: 100%;
+    }
+
+    .figure.figure-half {
+      width: 50%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .caption {
+      padding: 0.65rem 1rem;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    .chart-wrap {
+      padding: 1.25rem 0.75rem 0.5rem;
+      overflow-x: auto;
+    }
+
+    .chart-wrap svg { min-width: 680px; }
+
+    .chart-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      text-transform: lowercase;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.6;
+      margin: 1.25rem 0;
+    }
+
+    code { font-family: inherit; font-size: 0.92em; }
+
+    p code, li code {
+      background: var(--code-bg);
+      padding: 0.1em 0.35em;
+      border: 1px solid var(--border);
+    }
+
+    ul, ol { margin: 0 0 1rem 1.25rem; }
+    li { margin-bottom: 0.35rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      margin: 1.25rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.5rem;
+      text-align: left;
+    }
+    th { color: var(--muted); font-weight: 400; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.highlight td { background: rgba(110, 231, 168, 0.06); }
+
+    .callout {
+      border-left: 3px solid var(--accent2);
+      padding: 0.75rem 1rem;
+      margin: 1.5rem 0;
+      background: rgba(244, 162, 97, 0.05);
+      font-size: 14px;
+    }
+
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .kbd {
+      display: inline-block;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+      padding: 0 0.35rem;
+      font-size: 12px;
+    }
+
+    /* blog viz */
+    .viz-card-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      padding: 1rem 0.75rem 0.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .viz-card-grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .viz-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      padding: 0.85rem;
+      overflow-x: auto;
+    }
+
+    .viz-mini-title {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: lowercase;
+      margin-bottom: 0.65rem;
+    }
+
+    .viz-bar-group { margin-bottom: 0.85rem; }
+    .viz-bar-group:last-child { margin-bottom: 0; }
+
+    .viz-group-title {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .viz-bar-row {
+      display: grid;
+      grid-template-columns: 148px 1fr 62px;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 10px;
+      margin-bottom: 0.3rem;
+    }
+
+    .viz-bar-name {
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viz-bar-name strong { color: var(--fg); font-weight: 400; }
+
+    .viz-bar-track { height: 20px; background: var(--code-bg); overflow: hidden; }
+
+    .viz-bar-fill {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding-left: 5px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #08100c;
+      min-width: 2px;
+    }
+
+    .viz-bar-fill.good { background: var(--accent); }
+    .viz-bar-fill.mid { background: var(--accent2); }
+    .viz-bar-fill.bad { background: #e76f6f; }
+    .viz-bar-fill.blue { background: #4a7fd4; color: #eef4ff; }
+
+    .viz-bar-val {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--fg);
+    }
+
+    .viz-bar-row.lower .viz-bar-fill { margin-left: auto; }
+
+    .viz-cluster-wrap { padding: 1rem 0.75rem 0.5rem; overflow-x: auto; }
+
+    .viz-cluster {
+      min-width: 620px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      align-items: end;
+      min-height: 230px;
+    }
+
+    .viz-cluster-group { border-left: 1px solid var(--border); padding-left: 0.85rem; }
+    .viz-cluster-group:first-child { border-left: none; padding-left: 0; }
+
+    .viz-cluster-title { font-size: 11px; text-align: center; margin-bottom: 0.65rem; }
+
+    .viz-cluster-bars {
+      height: 160px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.45rem;
+    }
+
+    .viz-cluster-bar-wrap { width: 64px; text-align: center; }
+
+    .viz-cluster-bar { width: 100%; background: var(--accent2); margin: 0 auto; }
+    .viz-cluster-bar.good { background: var(--accent); }
+    .viz-cluster-bar.blue { background: #4a7fd4; }
+
+    .viz-cluster-val { font-size: 10px; margin-bottom: 0.35rem; font-variant-numeric: tabular-nums; }
+    .viz-cluster-lbl { margin-top: 0.4rem; font-size: 9px; color: var(--muted); line-height: 1.3; }
+
+    .viz-quant-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.65rem;
+      padding: 1rem 0.75rem 0.5rem;
+    }
+
+    @media (max-width: 720px) {
+      .viz-quant-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 420px) {
+      .viz-quant-grid { grid-template-columns: 1fr; }
+    }
+
+    .viz-quant-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      min-height: 150px;
+    }
+
+    .viz-quant-card.win {
+      background: rgba(110,231,168,0.04);
+      border-color: rgba(110,231,168,0.32);
+    }
+
+    .viz-quant-card.warn {
+      background: rgba(244,162,97,0.04);
+      border-color: rgba(244,162,97,0.28);
+    }
+
+    .viz-quant-card.badbox {
+      background: rgba(231,111,111,0.04);
+      border-color: rgba(231,111,111,0.28);
+    }
+
+    .viz-quant-name { font-size: 11px; margin-bottom: 0.55rem; }
+    .viz-quant-kv { margin-bottom: 0.35rem; font-size: 10px; color: var(--muted); }
+    .viz-quant-kv strong { color: var(--fg); font-weight: 400; font-variant-numeric: tabular-nums; }
+    .viz-quant-verdict { margin-top: 0.55rem; font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+    .col-good { color: var(--accent); }
+    .col-bad { color: #e76f6f; }
+    .col-mid { color: var(--accent2); }
+
+    @media (max-width: 520px) {
+      body { font-size: 14px; }
+      table { font-size: 10px; }
+      .viz-bar-row { grid-template-columns: 108px 1fr 52px; }
+      .figure.figure-half { width: 100%; }
+    }
+
+    .hero-vs {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0;
+      align-items: stretch;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    .hero-vs-panel {
+      background: var(--card);
+      padding: 1rem 0.85rem;
+      min-height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-vs-panel svg {
+      display: block;
+      width: 100%;
+      max-width: 280px;
+      height: auto;
+    }
+
+    .hero-vs-panel pre {
+      margin: 0;
+      border: none;
+      padding: 0;
+      background: transparent;
+      font-size: 10.5px;
+      line-height: 1.55;
+      overflow: visible;
+      width: 100%;
+    }
+
+    .hero-code .kw { color: #c77dff; }
+    .hero-code .ty { color: #6ee7a8; }
+    .hero-code .fn { color: #f4a261; }
+    .hero-code .num { color: #e8a0c0; }
+    .hero-code .op { color: #8a8680; }
+
+    .hero-vs-divider {
+      background: var(--code-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0.85rem;
+      color: var(--muted);
+      font-size: 14px;
+      text-transform: lowercase;
+      letter-spacing: 0.04em;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    @media (max-width: 560px) {
+      .hero-vs {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-vs-divider {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        padding: 0.45rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <article class="wrap">
+	<p class="back2">
+  &lt;- back to <a class="back" href="https://ryanhub.org/blog">blog</a> / <a class="back" href="https://ryanhub.org/">ryanhub</a>
+</p>
+
+    <h1>neural voxel engine</h1>
+
+    <p class="subtitle">
+      replacing analytic voxel physics with a tiny neural network
+    </p>
+
+    <p class="meta">
+	<span>by <a href="https://ryanhub.org/me">Ryan Alport</a></span>
+    <span>Jun 21, 2026</span>
+    <span><a href="https://github.com/RyanA005/voxel-game">repo</a></span>
+    </p>
+
+    <div class="hero-vs">
+      <div class="hero-vs-panel">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 200" fill="none" role="img" aria-label="Simple neural network">
+          <rect width="280" height="200" fill="#1a1a1a"/>
+          <text x="36" y="18" fill="#6ee7a8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">in</text>
+          <text x="140" y="18" fill="#f4a261" font-family="Consolas, monospace" font-size="9" text-anchor="middle">hidden</text>
+          <text x="244" y="18" fill="#6ee7a8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">out</text>
+          <circle cx="36" cy="50" r="7" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="36" cy="80" r="7" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="36" cy="110" r="7" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="36" cy="140" r="7" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="36" cy="170" r="7" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="140" cy="55" r="8" fill="#141414" stroke="#f4a261" stroke-width="1.5"/>
+          <circle cx="140" cy="85" r="8" fill="#141414" stroke="#f4a261" stroke-width="1.5"/>
+          <circle cx="140" cy="115" r="8" fill="#141414" stroke="#f4a261" stroke-width="1.5"/>
+          <circle cx="140" cy="145" r="8" fill="#141414" stroke="#f4a261" stroke-width="1.5"/>
+          <circle cx="140" cy="175" r="8" fill="#141414" stroke="#f4a261" stroke-width="1.5"/>
+          <circle cx="244" cy="70" r="8" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="244" cy="110" r="8" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <circle cx="244" cy="150" r="8" fill="#141414" stroke="#6ee7a8" stroke-width="1.5"/>
+          <g stroke="#2e2e2e" stroke-width="1" opacity="0.85">
+            <line x1="43" y1="50" x2="132" y2="55"/><line x1="43" y1="50" x2="132" y2="85"/>
+            <line x1="43" y1="50" x2="132" y2="115"/><line x1="43" y1="50" x2="132" y2="145"/>
+            <line x1="43" y1="50" x2="132" y2="175"/>
+            <line x1="43" y1="80" x2="132" y2="55"/><line x1="43" y1="80" x2="132" y2="85"/>
+            <line x1="43" y1="80" x2="132" y2="115"/><line x1="43" y1="80" x2="132" y2="145"/>
+            <line x1="43" y1="80" x2="132" y2="175"/>
+            <line x1="43" y1="110" x2="132" y2="55"/><line x1="43" y1="110" x2="132" y2="85"/>
+            <line x1="43" y1="110" x2="132" y2="115"/><line x1="43" y1="110" x2="132" y2="145"/>
+            <line x1="43" y1="110" x2="132" y2="175"/>
+            <line x1="43" y1="140" x2="132" y2="55"/><line x1="43" y1="140" x2="132" y2="85"/>
+            <line x1="43" y1="140" x2="132" y2="115"/><line x1="43" y1="140" x2="132" y2="145"/>
+            <line x1="43" y1="140" x2="132" y2="175"/>
+            <line x1="43" y1="170" x2="132" y2="55"/><line x1="43" y1="170" x2="132" y2="85"/>
+            <line x1="43" y1="170" x2="132" y2="115"/><line x1="43" y1="170" x2="132" y2="145"/>
+            <line x1="43" y1="170" x2="132" y2="175"/>
+            <line x1="148" y1="55" x2="236" y2="70"/><line x1="148" y1="55" x2="236" y2="110"/>
+            <line x1="148" y1="55" x2="236" y2="150"/>
+            <line x1="148" y1="85" x2="236" y2="70"/><line x1="148" y1="85" x2="236" y2="110"/>
+            <line x1="148" y1="85" x2="236" y2="150"/>
+            <line x1="148" y1="115" x2="236" y2="70"/><line x1="148" y1="115" x2="236" y2="110"/>
+            <line x1="148" y1="115" x2="236" y2="150"/>
+            <line x1="148" y1="145" x2="236" y2="70"/><line x1="148" y1="145" x2="236" y2="110"/>
+            <line x1="148" y1="145" x2="236" y2="150"/>
+            <line x1="148" y1="175" x2="236" y2="70"/><line x1="148" y1="175" x2="236" y2="110"/>
+            <line x1="148" y1="175" x2="236" y2="150"/>
+          </g>
+        </svg>
+      </div>
+      <div class="hero-vs-divider">vs</div>
+      <div class="hero-vs-panel">
+        <pre class="hero-code"><code><span class="kw">static</span> <span class="kw">void</span> <span class="fn">move_axis</span>(<span class="ty">Player</span> <span class="op">*</span>p, <span class="ty">int</span> axis,
+                      <span class="ty">float</span> amount) {
+  <span class="ty">float</span> old <span class="op">=</span> <span class="fn">get_axis</span>(p<span class="op">-&gt;</span>pos, axis);
+  <span class="fn">set_axis</span>(<span class="op">&amp;</span>p<span class="op">-&gt;</span>pos, axis, old <span class="op">+</span> amount);
+
+  <span class="kw">if</span> (<span class="fn">player_collides</span>(p)) {
+    <span class="fn">set_axis</span>(<span class="op">&amp;</span>p<span class="op">-&gt;</span>pos, axis, old);
+    <span class="kw">if</span> (axis <span class="op">==</span> <span class="num">0</span>) p<span class="op">-&gt;</span>vel.x <span class="op">=</span> <span class="num">0</span>;
+    <span class="kw">else if</span> (axis <span class="op">==</span> <span class="num">1</span>) {
+      <span class="kw">if</span> (p<span class="op">-&gt;</span>vel.y <span class="op">&lt;</span> <span class="num">0</span>) p<span class="op">-&gt;</span>grounded <span class="op">=</span> <span class="num">1</span>;
+      p<span class="op">-&gt;</span>vel.y <span class="op">=</span> <span class="num">0</span>;
+    } <span class="kw">else</span> p<span class="op">-&gt;</span>vel.z <span class="op">=</span> <span class="num">0</span>;
+  }
+}</code></pre>
+      </div>
+    </div>
+
+    <h2>the question</h2>
+
+    <p>
+	  can AI be used to completely replace a physics engine?
+    </p>
+    <p>
+	  I say why the hell not.
+    </p>
+    <p>
+	  this page is an examination of my process for implementing this idea from top to bottom while frequently stopping to analyze the results and why things look the way they do.
+    </p>
+
+    <aside class="note">
+      <strong>note:</strong>
+	  we are not going to be able to build a <i>better</i> physics engine by any metric other than coolness. for voxel physics, the algorithm is so simple that it is computationally basically free. this said, we will do our best and hopefully make a case for the potential of this technique in other applications.
+    </aside>
+
+
+    <hr>
+
+    <h2>starting with the game</h2>
+
+    <p>
+	  step one was to build our world.
+	  naturally, I chose C and Raylib for my stack here.
+	  we simulate a 16x16x16 cube where each cell can be one of 4 types
+    </p>
+	  <ul>
+		<li>air</li>
+		<li>regular tile <a style="color:grey">(grey)</a></li>
+		<li>goal block <a style="color:green">(green)</a></li>
+		<li>starting block <a style="color:blue">(blue)</a></li>
+	  </ul>
+    <p>
+	  our character is the <a style="color:orange">orange</a> box
+    </p>
+
+    <div class="figure">
+        <img src="https://ryanhub.org/images/neural-physics.png">
+    </div>
+
+    <div class="callout">
+      controls: <span class="kbd">WASD</span> move |
+      <span class="kbd">Space</span> jump |
+      <span class="kbd">R</span> new map |
+      <span class="kbd">Tab</span> toggle analytic/neural |
+      <span class="kbd">N</span> reload model
+    </div>
+
+    <aside class="note">
+      <strong>note:</strong>
+	  I built a spec by hand for exactly how the game should work but the entire implementation of the game was finished in a single prompt to Composer-2.5 in Cursor. more on agent use later.
+    </aside>
+
+    <p>
+	  with a playable world, we can extract a state each time step and generate ourselves some training data to use in our model.
+	</p>
+
+    <hr>
+
+    <h2>gamestate object and model architecture</h2>
+
+    <p>
+	  the game executable has a headless data capture mode that grabs current inputs, current position (xyz), velocity (xyz), a <i>grounded flag</i> and the 9x9x9 voxels surrounding the player.
+	</p>
+    <p>
+	  we trained and will examine a number of models but we will mostly focus on ones that used 3x3x3 voxel observation as input.
+	</p>
+
+    <div class="figure">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" fill="none" role="img" aria-label="Fidelity anchor MLP: 39 inputs, 256x256 hidden, 7 outputs">
+        <rect width="680" height="360" fill="#1a1a1a"/>
+        <rect x="0.5" y="0.5" width="679" height="359" stroke="#2e2e2e"/>
+		<text x="340" y="28" fill="#8a8680" font-family="Consolas, monospace" font-size="12" text-anchor="middle">anchor: patch3/256_rollout8_idle4.bin</text>
+        <text x="90" y="58" fill="#6ee7a8" font-family="Consolas, monospace" font-size="12" text-anchor="middle">39 inputs</text>
+        <rect x="24" y="72" width="132" height="220" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <text x="90" y="98" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">27 voxels</text>
+        <text x="90" y="114" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">3x3x3 patch</text>
+        <line x1="36" y1="124" x2="144" y2="124" stroke="#2e2e2e"/>
+        <text x="90" y="142" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">3 offsets</text>
+        <text x="90" y="158" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">sub-voxel pos</text>
+        <line x1="36" y1="168" x2="144" y2="168" stroke="#2e2e2e"/>
+        <text x="90" y="186" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">3 velocity</text>
+        <line x1="36" y1="196" x2="144" y2="196" stroke="#2e2e2e"/>
+        <text x="90" y="214" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">1 grounded</text>
+        <line x1="36" y1="224" x2="144" y2="224" stroke="#2e2e2e"/>
+        <text x="90" y="242" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">5 buttons</text>
+        <text x="90" y="258" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">WASD + jump</text>
+        <line x1="36" y1="268" x2="144" y2="268" stroke="#2e2e2e"/>
+        <text x="90" y="286" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">dt + scalars</text>
+        <text x="250" y="58" fill="#f4a261" font-family="Consolas, monospace" font-size="12" text-anchor="middle">256 hidden</text>
+        <rect x="184" y="110" width="132" height="144" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <text x="250" y="172" fill="#e8e4dc" font-family="Consolas, monospace" font-size="11" text-anchor="middle">ReLU</text>
+        <text x="250" y="190" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">fused norm</text>
+        <text x="250" y="206" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">layer 1</text>
+        <text x="430" y="58" fill="#f4a261" font-family="Consolas, monospace" font-size="12" text-anchor="middle">256 hidden</text>
+        <rect x="364" y="110" width="132" height="144" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <text x="430" y="172" fill="#e8e4dc" font-family="Consolas, monospace" font-size="11" text-anchor="middle">ReLU</text>
+        <text x="430" y="190" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">layer 2</text>
+        <text x="430" y="206" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">8-step rollout</text>
+        <text x="590" y="58" fill="#6ee7a8" font-family="Consolas, monospace" font-size="12" text-anchor="middle">7 outputs</text>
+        <rect x="524" y="72" width="132" height="220" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <text x="590" y="98" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">dx, dy, dz</text>
+        <line x1="536" y1="108" x2="644" y2="108" stroke="#2e2e2e"/>
+        <text x="590" y="126" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">next vx, vy, vz</text>
+        <line x1="536" y1="136" x2="644" y2="136" stroke="#2e2e2e"/>
+        <text x="590" y="154" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10" text-anchor="middle">next grounded</text>
+        <text x="590" y="190" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">applied directly</text>
+        <text x="590" y="206" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">no collision fix</text>
+        <line x1="156" y1="182" x2="180" y2="182" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="180,182 170,177 170,187" fill="#2e2e2e"/>
+        <line x1="316" y1="182" x2="360" y2="182" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="360,182 350,177 350,187" fill="#2e2e2e"/>
+        <line x1="496" y1="182" x2="520" y2="182" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="520,182 510,177 510,187" fill="#2e2e2e"/>
+        <text x="340" y="340" fill="#8a8680" font-family="Consolas, monospace" font-size="11" text-anchor="middle">~10 us/step (AVX2) | 304 KB fp32 | 153 KB fp16 | 13 min train</text>
+      </svg>
+    </div>
+
+    <p>
+	  after a little testing, I determined that two layers is sufficient for this task while keeping the models very small and fast. we could push the fidelity with more layers but for now, two works. we will examine different layer sizes shortly...
+	</p>
+
+    <hr>
+    <h2>rules for training, inference, and benchmarks</h2>
+
+    <ul>
+      <li><strong>pure neural at runtime.</strong> no analytic fallback or corrections ever</li>
+      <li><strong>inference is done in the main thread in C.</strong> no pytorch outside of training</li>
+      <li><strong>fixed dt = 1/60.</strong> same in recording, training, and inference</li>
+      <li><strong>analytic is the reference.</strong> all comparisons should be considered a multiple of the analytic physics</li>
+      <li><strong>one step validation is not enough.</strong> we must study the divergence across multiple frames to get a true benchmark</li>
+    </ul>
+
+    <p>
+	  these rules are meant to keep this a super honest evaluation of the models we build.
+	  in some early generations, before clarifying these rules, Cursor found all kinds of ways to cheat and artificially inflate the benchmark results. I recommend really thinking through your success criteria and considering how models might cheat or mislead your benchmark results. 
+	</p>
+    <p>
+	  when training AI we always deal with the models themselves finding ways to misbehave but win on benchmarks, agents will do the same thing unless you build and enforce an intelligent system of rules.
+	</p>
+    <hr>
+
+    <h2>training basics</h2>
+
+    <p>
+	  training follows the standard supervised training pipeline. we gather data from the actual game's physics engine and use pytorch to train a MLP.
+	</p>
+    <p>
+      loss is computed using MSE on the seven outputs, velocity, position, and grounded, but, position error is multiplied by 20, velocity by 2, grounded by 5.
+    </p>
+    <p>
+      these numbers were tuned during our evolution in addition to modifications to the dataset to represent certain cases more or less.
+    </p>
+    <p>
+      we also aim to train across multiple frames of a single simulation world.
+      for a single step it was fairly easy to push accuracy as high as 99%. 
+	  across a rollout however, it is much more difficult and almost certainly impossible if we only see one frame at a time.
+    </p>
+    <p>
+      single step accuracy is still an important metric for ensuring training has not collapsed but it tells us very very little about how the neural physics will actually play.
+    </p>
+
+    <div class="figure">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 146" fill="none" role="img" aria-label="Rollout training: teacher-forced unroll with step loss and cumulative position loss">
+        <rect width="680" height="146" fill="#1a1a1a"/>
+        <rect x="0.5" y="0.5" width="679" height="145" stroke="#2e2e2e"/>
+        <text x="340" y="22" fill="#8a8680" font-family="Consolas, monospace" font-size="11" text-anchor="middle">teacher-forced rollout (K consecutive frames from one episode)</text>
+
+        <text x="52" y="50" fill="#6ee7a8" font-family="Consolas, monospace" font-size="10" text-anchor="middle">obs₀</text>
+        <rect x="16" y="58" width="72" height="44" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <text x="52" y="84" fill="#8a8680" font-family="Consolas, monospace" font-size="8" text-anchor="middle">recorded</text>
+
+        <line x1="88" y1="80" x2="108" y2="80" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="108,80 100,76 100,84" fill="#2e2e2e"/>
+
+        <rect x="112" y="64" width="56" height="32" rx="2" fill="#141414" stroke="#f4a261"/>
+        <text x="140" y="84" fill="#f4a261" font-family="Consolas, monospace" font-size="10" text-anchor="middle">MLP</text>
+
+        <line x1="168" y1="80" x2="188" y2="80" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="188,80 180,76 180,84" fill="#2e2e2e"/>
+
+        <text x="224" y="50" fill="#6ee7a8" font-family="Consolas, monospace" font-size="10" text-anchor="middle">obs₁</text>
+        <rect x="188" y="58" width="72" height="44" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <line x1="260" y1="80" x2="280" y2="80" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="280,80 272,76 272,84" fill="#2e2e2e"/>
+        <rect x="284" y="64" width="56" height="32" rx="2" fill="#141414" stroke="#f4a261"/>
+        <text x="312" y="84" fill="#f4a261" font-family="Consolas, monospace" font-size="10" text-anchor="middle">MLP</text>
+        <text x="368" y="84" fill="#8a8680" font-family="Consolas, monospace" font-size="14" text-anchor="middle">…</text>
+
+        <text x="424" y="50" fill="#6ee7a8" font-family="Consolas, monospace" font-size="10" text-anchor="middle">obs K-1</text>
+        <rect x="388" y="58" width="72" height="44" rx="2" fill="#141414" stroke="#2e2e2e"/>
+        <line x1="460" y1="80" x2="480" y2="80" stroke="#2e2e2e" stroke-width="2"/>
+        <polygon points="480,80 472,76 472,84" fill="#2e2e2e"/>
+        <rect x="484" y="64" width="56" height="32" rx="2" fill="#141414" stroke="#f4a261"/>
+        <text x="512" y="84" fill="#f4a261" font-family="Consolas, monospace" font-size="10" text-anchor="middle">MLP</text>
+
+        <text x="596" y="50" fill="#6ee7a8" font-family="Consolas, monospace" font-size="10" text-anchor="middle">target</text>
+        <rect x="560" y="58" width="96" height="44" rx="2" fill="#141414" stroke="#6ee7a8" stroke-opacity="0.5"/>
+        <text x="608" y="76" fill="#e8e4dc" font-family="Consolas, monospace" font-size="8" text-anchor="middle">Δpos, vel,</text>
+        <text x="608" y="88" fill="#e8e4dc" font-family="Consolas, monospace" font-size="8" text-anchor="middle">grounded</text>
+
+        <line x1="24" y1="110" x2="656" y2="110" stroke="#2e2e2e"/>
+
+        <text x="340" y="126" fill="#f4a261" font-family="Consolas, monospace" font-size="10" text-anchor="middle">step loss (each frame):  20·MSE(Δpos) + 2·MSE(vel) + 5·MSE(grounded)  × sample weight</text>
+        <text x="340" y="136" fill="#6ee7a8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">+ rollout term:  rollout-weight · MSE(cum Δpos)  +  0.5·rollout-weight · MSE(vel sequence)</text>
+      </svg>
+      <div class="caption">
+        each batch samples K consecutive frames from one recorded episode. the model is scored on every step, plus how wrong the accumulated position drift is over the window.
+      </div>
+    </div>
+
+    <hr>
+
+    <h2>first stable models</h2>
+
+    <p>
+      the first model worth taking seriously was <code>models/model.bin</code> trained to see just one step at a time and the full 9x9x9.
+    </p>
+
+	<div class="figure">
+      <img src="https://ryanhub.org/images/v1.gif" alt="Gameplay with first stable model.bin">
+    </div>
+    <ul>
+      <li><strong>input</strong> - 9x9x9 voxels, position, velocity, grounded flag, WASD+jump (741 floats)</li>
+      <li><strong>architecture</strong> - 128×128 MLP, ReLU, 7 outputs (Δpos, next velocity, next grounded)</li>
+      <li><strong>loss</strong> - one-step MSE per frame: position x20, velocity x2, grounded x5</li>
+      <li><strong>export</strong> - fp32 weights + normalization stats to <code>model.bin</code></li>
+    </ul>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>metric</th><th class="num">value</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>val pos RMSE</td><td class="num">0.00315</td></tr>
+        <tr><td>val vel RMSE</td><td class="num">0.16</td></tr>
+        <tr><td>grounded acc</td><td class="num">99.2%</td></tr>
+        <tr><td>neural step</td><td class="num">64 µs, compare to ~0.2 µs for analytic physics</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+      this looked great from the benchmarks, tiny positional error, 99% grounded accuracy but it played pretty bad...
+    </p>
+    <p>
+      this led to the development of the rollout benchmark. we needed to better measure how the game would actually play.
+    </p>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>metric</th><th class="num">value</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>rollout pos error</td><td class="num">0.68</td></tr>
+        <tr><td>tunneling</td><td class="num">941 / 12475</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>
+      this shows a more accurate story, over 300 steps, we average 0.68 voxels off and 941 / 12475 (7.5%) of steps, we are inside a block and not grounded.
+    </p>
+    <p>
+	  this matched the actual gameplay where we sink into terrain and jitter or slide when moving.
+    </p>
+
+    <h2>V2, 256x256 trained on 8-steps</h2>
+
+    <p>
+	  in two steps, this iteration scaled the model up and implemented the multi step training I already detailed.
+    </p>
+
+	<div class="figure">
+      <img src="https://ryanhub.org/images/v2.gif" alt="Gameplay with rollout-trained 256×256 model">
+    </div>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>metric</th>
+          <th class="num">baseline 128×128</th>
+          <th class="num">rollout 256×256</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>val pos RMSE (train)</td><td class="num">0.00315</td><td class="num">0.00281</td></tr>
+        <tr><td>val rollout pos 8-step (train)</td><td class="num">—</td><td class="num">0.00458</td></tr>
+        <tr><td>C rollout pos error</td><td class="num">0.68</td><td class="num">0.46</td></tr>
+        <tr><td>C rollout vel error</td><td class="num">2.62</td><td class="num">1.84</td></tr>
+        <tr><td>grounded mismatch</td><td class="num">18.6%</td><td class="num">10.9%</td></tr>
+        <tr><td>neural tunnel</td><td class="num">941</td><td class="num">357</td></tr>
+        <tr><td>step µs</td><td class="num">~66</td><td class="num">~153</td></tr>
+        <tr><td>× analytic</td><td class="num">~330×</td><td class="num">~765×</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>
+	  rollout training moved every metric, pos error 0.68 -> 0.46, tunnelling 941 -> 357, grounded mismatch cut nearly in half.
+      just to illustrate again the invalidity of the one-step benchmarks, the val RMSE hardly moved.
+      the cost of this new model was speed: ~153 µs/step vs ~66 µs for the smaller one, my focus was first to push the model to high fidelity, then optimize.
+    </p>
+
+    <p>
+	  this was also a huge step for the gameplay quality, things were now pretty stable but not perfect, the jitter and phasing are still present especially around edge cases. 
+    </p>
+
+    <h2>V3, better dataset coverage</h2>
+
+    <p>
+      <code>models/model_rollout_v2.bin</code> - same 256×256, 8-step rollout as v2, but trained on a modified training set.
+	</p>
+
+	<div class="figure">
+      <img src="https://ryanhub.org/images/v3.gif" alt="Gameplay with model_rollout_v2 idle dataset">
+    </div>
+
+	<p>
+	  I figured that a lot of the jitter and sliding when standing still was due to a lack of <i>just standing</i> in the dataset, despite real human gameplay having lots of idle time.
+    </p>
+	<p>
+	  I also theorized that the small upward velocity correction when standing on the ground has some effect on the character <i>bouncing</i> constantly during gameplay.
+    </p>
+	<p>
+	  I added direct idle gameplay coverage to the data collection spread, as well as a tweak when recording so that we did not report the micro adjustments when grounded.
+    </p>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>metric</th>
+          <th class="num">rollout v1</th>
+          <th class="num">rollout v2</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>val pos RMSE</td><td class="num">0.00281</td><td class="num">0.00217</td></tr>
+        <tr><td>val rollout pos 8-step</td><td class="num">0.00458</td><td class="num">0.00272</td></tr>
+        <tr><td>grounded acc</td><td class="num">99.2%</td><td class="num">99.8%</td></tr>
+        <tr><td>C rollout pos error</td><td class="num">0.46</td><td class="num">0.42</td></tr>
+        <tr><td>C rollout vel error</td><td class="num">1.84</td><td class="num">1.08</td></tr>
+        <tr><td>grounded mismatch</td><td class="num">10.9%</td><td class="num">8.7%</td></tr>
+        <tr><td>neural tunnel</td><td class="num">357</td><td class="num">420</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+	<p>
+	  I did not know what to expect as far as the effect on the benchmarks for these changes. that said, we see solid improvements on everything except for the tunneling
+    </p>
+	<p>
+	  in gameplay this is also much stronger, still some sinking but this is very playable now.
+    </p>
+	<p>
+	  At this point there were a few upgrades I thought about for the dataset along with a size increase but the training duration was far too long and beginning to hit memory limits on my laptop. I created a V3 dataset detailed in the chart below but we will save it for our next generation. down the next rabbit hole...
+    </p>
+
+	<div class="figure">
+      <div class="chart-wrap" style="padding-top:0.5rem;padding-bottom:0.25rem">
+        <div class="chart-title">effective recorder policy · each row sums to 100%</div>
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>dataset</th>
+              <th class="num">idle / no-input</th>
+              <th class="num">random combo</th>
+              <th class="num">single direction</th>
+              <th class="num">forward+jump</th>
+              <th class="num">edge-walk</th>
+              <th class="num">airborne fall/drift</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>v1</td><td class="num">5.0</td><td class="num">50.0</td><td class="num">30.0</td><td class="num">15.0</td><td class="num">0.0</td><td class="num">0.0</td></tr>
+            <tr><td>v2 final</td><td class="num">23.4</td><td class="num">41.4</td><td class="num">22.0</td><td class="num">13.2</td><td class="num">0.0</td><td class="num">0.0</td></tr>
+            <tr><td>v3 grounded-start</td><td class="num">23.5</td><td class="num">27.0</td><td class="num">22.5</td><td class="num">13.5</td><td class="num">13.5</td><td class="num">0.0</td></tr>
+            <tr><td>v3 airborne-start</td><td class="num">9.0</td><td class="num">18.0</td><td class="num">15.0</td><td class="num">9.0</td><td class="num">9.0</td><td class="num">40.0</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 248" fill="none" role="img" aria-label="Effective recorder policy mix per dataset version" style="margin-top:0.75rem">
+          <rect width="680" height="248" fill="#1a1a1a"/>
+          <rect x="0.5" y="0.5" width="679" height="247" stroke="#2e2e2e"/>
+
+          <rect x="120" y="10" width="8" height="8" fill="#6ee7a8"/>
+          <text x="132" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">idle</text>
+          <rect x="168" y="10" width="8" height="8" fill="#4a7fd4"/>
+          <text x="180" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">random</text>
+          <rect x="232" y="10" width="8" height="8" fill="#c77dff"/>
+          <text x="244" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">direction</text>
+          <rect x="304" y="10" width="8" height="8" fill="#f4a261"/>
+          <text x="316" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">fwd+jump</text>
+          <rect x="384" y="10" width="8" height="8" fill="#e8a0c0"/>
+          <text x="396" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">edge</text>
+          <rect x="432" y="10" width="8" height="8" fill="#e76f6f"/>
+          <text x="444" y="18" fill="#8a8680" font-family="Consolas, monospace" font-size="8">fall/drift</text>
+
+          <!-- v1 -->
+          <text x="8" y="52" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10">v1</text>
+          <rect x="120" y="38" width="26" height="18" fill="#6ee7a8" opacity="0.9"/>
+          <rect x="146" y="38" width="260" height="18" fill="#4a7fd4" opacity="0.9"/>
+          <rect x="406" y="38" width="156" height="18" fill="#c77dff" opacity="0.9"/>
+          <rect x="562" y="38" width="78" height="18" fill="#f4a261" opacity="0.9"/>
+
+          <!-- v2 -->
+          <text x="8" y="92" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10">v2</text>
+          <rect x="120" y="78" width="121.7" height="18" fill="#6ee7a8" opacity="0.9"/>
+          <rect x="241.7" y="78" width="215.3" height="18" fill="#4a7fd4" opacity="0.9"/>
+          <rect x="457" y="78" width="114.4" height="18" fill="#c77dff" opacity="0.9"/>
+          <rect x="571.4" y="78" width="68.6" height="18" fill="#f4a261" opacity="0.9"/>
+
+          <!-- v3 grounded -->
+          <text x="8" y="132" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10">v3 g</text>
+          <text x="8" y="144" fill="#8a8680" font-family="Consolas, monospace" font-size="8">grounded</text>
+          <rect x="120" y="118" width="122.2" height="18" fill="#6ee7a8" opacity="0.9"/>
+          <rect x="242.2" y="118" width="140.4" height="18" fill="#4a7fd4" opacity="0.9"/>
+          <rect x="382.6" y="118" width="117" height="18" fill="#c77dff" opacity="0.9"/>
+          <rect x="499.6" y="118" width="70.2" height="18" fill="#f4a261" opacity="0.9"/>
+          <rect x="569.8" y="118" width="70.2" height="18" fill="#e8a0c0" opacity="0.9"/>
+
+          <!-- v3 airborne -->
+          <text x="8" y="182" fill="#e8e4dc" font-family="Consolas, monospace" font-size="10">v3 a</text>
+          <text x="8" y="194" fill="#8a8680" font-family="Consolas, monospace" font-size="8">airborne</text>
+          <rect x="120" y="168" width="46.8" height="18" fill="#6ee7a8" opacity="0.9"/>
+          <rect x="166.8" y="168" width="93.6" height="18" fill="#4a7fd4" opacity="0.9"/>
+          <rect x="260.4" y="168" width="78" height="18" fill="#c77dff" opacity="0.9"/>
+          <rect x="338.4" y="168" width="46.8" height="18" fill="#f4a261" opacity="0.9"/>
+          <rect x="385.2" y="168" width="46.8" height="18" fill="#e8a0c0" opacity="0.9"/>
+          <rect x="432" y="168" width="208" height="18" fill="#e76f6f" opacity="0.9"/>
+
+          <rect x="120" y="200" width="520" height="40" rx="2" fill="#141414" stroke="#2e2e2e"/>
+          <text x="380" y="216" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">v3 is state-dependent: grounded → 10% idle branch, else movement mix</text>
+          <text x="380" y="230" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">airborne → 40% fall/drift branch first, else a thinner movement mix</text>
+        </svg>
+      </div>
+      <div class="caption">
+        v3 is interesting, the recorder picks different odds when grounded vs airborne. the aim was to better capture different edge cases. I later considered even another branch for colliding but it was never implemented. 
+		<br>
+		this just goes to show the effect and level of tuning that datasets can give you when training the models, hyperparameters and even loss functions are not everything.
+      </div>
+    </div>
+
+    <h2>patch size sweep</h2>
+
+    <p>
+      one thing I thought we could very easily optimize was the patch size (number of voxels input) we give to the network at each step. this was making training super slow and theoretically, it makes very little sense that we would ever need to know anything about voxels besides the ones we could theoretically touch in this or the next frame.
+    </p>
+    <p>
+      so I went and trained 128x128 models at every patch size from 9x9x9 down to 2x2x2; (15 epochs, 200k samples).
+    </p>
+    <p>
+      the goal was just to evidence that we wouldnt have steep performance drop offs while we made each model exponentially smaller and easier to train. below are the somewhat interesting results.
+    </p>
+
+    <div class="figure">
+      <div class="viz-card-grid-2">
+        <div class="viz-card">
+          <div class="viz-mini-title">patch sweep &middot; rollout error</div>
+          <div id="viz-patch-err"></div>
+        </div>
+        <div class="viz-card">
+          <div class="viz-mini-title">patch sweep &middot; step time</div>
+          <div id="viz-patch-speed"></div>
+        </div>
+      </div>
+      <div class="caption">
+	    training step times drop very expectedly but the error results are confusing, they are all over the place.
+      </div>
+    </div>
+
+	<p>
+	  I wanted to investigate why the error was not in line with my expectations.
+	  the amount of noise in the sweep led me to believe that there were some dials we could play with to at least find a real pattern here.
+	</p>
+
+	<p>
+	  my main suspicion was that my initial sweep was underfitted so I bumped the training steps, I also increased the dimensionality of each model to ensure that wasnt the issue.
+	</p>
+
+	<p>
+	  my current 'situation' does not include an easy to access graphics card so I only ran this for a few of these models to save some time, the results are below.
+	</p>
+
+    <div class="figure">
+      <div class="table-wrap" style="margin-top:0.75rem">
+        <div class="chart-title">256x256 idle4 retrain; patches 3&sup3;&ndash;6&sup3; &middot; C benchmark 50&times;300</div>
+        <table>
+          <thead>
+            <tr>
+              <th>patch</th>
+              <th class="num">old sweep pos</th>
+              <th class="num">new pos</th>
+              <th class="num">weight KB</th>
+              <th class="num">step &micro;s</th>
+              <th class="num">gnd mm%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>3&sup3; anchor</td><td class="num">1.313</td><td class="num">0.335</td><td class="num">304</td><td class="num">9.9</td><td class="num">9.9</td></tr>
+            <tr><td>4&sup3; retrain</td><td class="num">0.538</td><td class="num">0.351</td><td class="num">342</td><td class="num">9.9</td><td class="num">10.9</td></tr>
+            <tr><td>5&sup3; retrain</td><td class="num">0.627</td><td class="num">0.374</td><td class="num">403</td><td class="num">10.3</td><td class="num">11.3</td></tr>
+            <tr><td>6&sup3; retrain</td><td class="num">1.208</td><td class="num">0.387</td><td class="num">495</td><td class="num">12.0</td><td class="num">11.9</td></tr>
+          </tbody>
+        </table>
+		<div class="caption">
+		  the 256_batch_8_idle4 class of models now match my initial expectation of size reduction and negligible quality dropoff.
+		</div>
+      </div>
+    </div>
+
+	<p>
+	  with this making sense, the fidelity being pretty damn good, and a known good recipe, we can move on to optimizations and pushing these models to their limit.
+	</p>
+
+	<h2>pushing the 3x3x3</h2>
+
+    <p>
+	  I chose the 3x3x3 as the model to continue pushing. there are a few goals,
+    </p>
+	  <ul>
+	    <li>see how fast we can go</li>
+		<li>see how accurate we can get</li>
+		<li>see how small we can make it</li>
+	  </ul>
+	
+	<p>
+	  I set off a few training runs at different sizes and architectures, all using the v3 dataset, and here are the successful models. 
+	</p>
+
+    <div class="figure">
+      <div class="chart-wrap" style="padding-top:0.5rem;padding-bottom:0.25rem">
+        <div class="chart-title">speed vs accuracy vs weight</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 340" fill="none" role="img" style="margin-top:0.5rem">
+          <rect width="680" height="340" fill="#1a1a1a"/>
+          <rect x="0.5" y="0.5" width="679" height="339" stroke="#2e2e2e"/>
+
+          <!-- plot: x 58..660 (0..280 µs), y 44..288 (0..0.60 pos, 0 at bottom) -->
+          <line x1="58" y1="288" x2="660" y2="288" stroke="#3a3a3a" stroke-width="1"/>
+          <line x1="58" y1="44" x2="58" y2="288" stroke="#3a3a3a" stroke-width="1"/>
+
+          <!-- y ticks (pos 0, .2, .4, .6) -->
+          <text x="52" y="292" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">0</text>
+          <text x="52" y="211" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">.2</text>
+          <text x="52" y="129" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">.4</text>
+          <text x="52" y="48" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">.6</text>
+
+          <!-- x ticks (0, 70, 140, 210, 280 µs) -->
+          <text x="58" y="304" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="middle">0</text>
+          <text x="208" y="304" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="middle">70</text>
+          <text x="359" y="304" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="middle">140</text>
+          <text x="509" y="304" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="middle">210</text>
+          <text x="660" y="304" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="middle">280</text>
+
+          <text x="359" y="328" fill="#8a8680" font-family="Consolas, monospace" font-size="10" text-anchor="middle">step time (&micro;s / step) &rarr; lower is faster</text>
+          <text x="16" y="166" fill="#8a8680" font-family="Consolas, monospace" font-size="10" text-anchor="middle" transform="rotate(-90 16 166)">rollout position error &rarr; lower is better</text>
+
+          <!-- bubbles: r ≈ 5 + sqrt(kb/1012)*18 -->
+
+          <!-- analytic: 0.2 µs, 0 pos, 0 KB @ (60, 288) -->
+          <circle cx="60" cy="288" r="5" fill="#e8e4dc" fill-opacity="0.55" stroke="#ffffff" stroke-width="1.2"/>
+          <text x="68" y="278" fill="#ece8e0" font-family="Consolas, monospace" font-size="8">analytic</text>
+
+          <!-- 64_rollout4_fast: 5.7 µs, .476, 28 KB @ (71, 95) r=8 -->
+          <circle cx="71" cy="95" r="8" fill="#3b82f6" fill-opacity="0.6" stroke="#60a5fa" stroke-width="1.2"/>
+          <text x="82" y="99" fill="#93c5fd" font-family="Consolas, monospace" font-size="8">64_rollout4_fast</text>
+
+          <!-- 128_rollout4_30ep: 18 µs, .578, 88 KB @ (97, 53) r=10 -->
+          <circle cx="97" cy="53" r="10" fill="#06b6d4" fill-opacity="0.55" stroke="#22d3ee" stroke-width="1.2"/>
+          <text x="109" y="48" fill="#67e8f9" font-family="Consolas, monospace" font-size="8">128_rollout4_30ep</text>
+
+          <!-- 256_rollout8_idle4: 72 µs, .335, 304 KB @ (213, 152) r=15 -->
+          <circle cx="213" cy="152" r="15" fill="#6ee7a8" fill-opacity="0.6" stroke="#8ef0bc" stroke-width="1.3"/>
+          <text x="232" y="168" fill="#6ee7a8" font-family="Consolas, monospace" font-size="8">256_rollout8_idle4</text>
+
+          <!-- 256_rollout8_30ep: 72 µs, .416, 304 KB @ (213, 119) r=15 -->
+          <circle cx="213" cy="119" r="15" fill="#f4a261" fill-opacity="0.6" stroke="#ffb07a" stroke-width="1.2"/>
+          <text x="232" y="112" fill="#f4a261" font-family="Consolas, monospace" font-size="8">256_rollout8_30ep</text>
+
+          <!-- 9³ v2: 268 µs, .530, 1012 KB @ (634, 73) r=23 -->
+          <circle cx="634" cy="73" r="23" fill="#c77dff" fill-opacity="0.5" stroke="#e090ff" stroke-width="1.2"/>
+          <text x="612" y="68" fill="#d8a8ff" font-family="Consolas, monospace" font-size="8" text-anchor="end">9&sup3; v2</text>
+        </svg>
+      </div>
+      <div class="caption">
+        each point is one model: horizontal = inference step time, vertical = rollout position error, bubble area = file size. 
+		<br>
+      </div>
+    </div>
+
+	<p>
+	  models to highlight:
+	</p>
+	<ul>
+	  <li><code>patch3/256_rollout8_idle4.bin</code> - <strong>fidelity anchor</strong>. 0.335 pos, 9.9% grounded mismatch, 231 tunnel steps. plays great.</li>
+	  <li><code>patch3/64_rollout4_fast.bin</code> - <strong>speed floor</strong>. 0.476 pos at 5.7&micro;s/step. this one still beats the old 9x9x9 baseline in accuracy.</li>
+	</ul>
+
+	<div class="figure">
+      <img src="https://ryanhub.org/images/v4.gif" alt="Gameplay with 3×3×3 idle4 anchor model">
+    </div>
+
+    <hr>
+
+    <h2>final optimization push</h2>
+	<p>
+	  there are a few things we can do in C to push inference speeds for all of our models without touching weights or retraining.
+	</p>
+
+	<h3>fused matmul + compiler optimizations</h3>
+	<p>
+	  layer-1 normalized into a temp buffer then take a dot product with w1. we can fold normalization calculation right into that calculation to remove the entire whole pass and we can do it on the denormalization step as well. we also prefetch the next row with this cool macro:
+	  <br><code>#define NNPREFETCH(p) __builtin_prefetch((p), 0, 3)</code><br>
+	  of course we also flip the compiler to Release <br><code>-O3 -ffast-math -funroll-loops -march=native</code>
+	</p>
+	<p>
+	  this is basically free and it results in <strong>72&nbsp;&micro;s &rarr; 11.9&nbsp;&micro;s</strong> (~6&times;) speed increase for the 256_rollout8_idle4 model.
+	</p>
+
+    <div class="figure">
+      <div class="chart-wrap" style="padding-top:0.5rem;padding-bottom:0.25rem">
+		  <div class="chart-title">C optimizations &middot; pre vs post &middot; end-to-end neural step (&micro;s)</div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 280" fill="none" role="img" aria-label="Bar chart comparing inference speed before and after Phase 12 C optimizations" style="margin-top:0.5rem">
+          <rect width="680" height="280" fill="#1a1a1a"/>
+          <rect x="0.5" y="0.5" width="679" height="279" stroke="#2e2e2e"/>
+
+          <rect x="200" y="14" width="8" height="8" fill="#8a8680"/>
+          <text x="212" y="22" fill="#8a8680" font-family="Consolas, monospace" font-size="8">pre-opt (fp32)</text>
+          <rect x="360" y="14" width="8" height="8" fill="#6ee7a8"/>
+          <text x="372" y="22" fill="#6ee7a8" font-family="Consolas, monospace" font-size="8">post-opt (fused matmul + Release)</text>
+
+          <line x1="48" y1="230" x2="640" y2="230" stroke="#3a3a3a" stroke-width="1"/>
+          <text x="42" y="234" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">0</text>
+          <text x="42" y="62" fill="#6a6660" font-family="Consolas, monospace" font-size="8" text-anchor="end">280</text>
+
+          <!-- bar height: val / 280 * 180, baseline y=230 -->
+
+          <!-- 3³ anchor -->
+          <rect x="92" y="184" width="18" height="46" fill="#8a8680" opacity="0.55"/>
+          <text x="101" y="178" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">72</text>
+          <rect x="114" y="222" width="18" height="8" fill="#6ee7a8" opacity="0.85"/>
+          <text x="123" y="216" fill="#6ee7a8" font-family="Consolas, monospace" font-size="7" text-anchor="middle">12</text>
+          <text x="112" y="248" fill="#6ee7a8" font-family="Consolas, monospace" font-size="9" text-anchor="middle">3&sup3; anchor &#9733;</text>
+          <text x="112" y="260" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">0.335 pos</text>
+
+          <!-- 3³ 64×64 speed -->
+          <rect x="262" y="226" width="18" height="4" fill="#8a8680" opacity="0.55"/>
+          <text x="271" y="220" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">5.7</text>
+          <rect x="284" y="229" width="18" height="1.2" fill="#c77dff" opacity="0.85"/>
+          <text x="293" y="223" fill="#c77dff" font-family="Consolas, monospace" font-size="7" text-anchor="middle">1.9</text>
+          <text x="282" y="248" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">3&sup3; 64&times;64</text>
+          <text x="282" y="260" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">0.476 pos</text>
+
+          <!-- 9³ v2 -->
+          <rect x="432" y="58" width="18" height="172" fill="#8a8680" opacity="0.55"/>
+          <text x="441" y="52" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">268</text>
+          <rect x="454" y="195" width="18" height="35" fill="#4a7fd4" opacity="0.85"/>
+          <text x="463" y="189" fill="#4a7fd4" font-family="Consolas, monospace" font-size="7" text-anchor="middle">55</text>
+          <text x="452" y="248" fill="#8a8680" font-family="Consolas, monospace" font-size="9" text-anchor="middle">9&sup3; v2</text>
+          <text x="452" y="260" fill="#8a8680" font-family="Consolas, monospace" font-size="7" text-anchor="middle">0.530 pos</text>
+        </svg>
+	  </div>
+	</div>
+
+	<h3>AVX2 SIMD</h3>
+	<p>
+	  this is over the top but I went ahead and implemented AVX2-FMA kernels: 8-wide FP32 dots with runtime dispatch via <code>__builtin_cpu_supports</code>.
+	</p>
+	<p>
+	 I briefly tried VNNI int8 but rollout instantly broke and I could not fix it. real int8 speed probably needs QAT and integer dots. our post training quantization is not compatible, more on that in the next section.
+	</p>
+
+    <div class="figure">
+      <div class="viz-cluster-wrap">
+        <div class="viz-cluster" id="viz-cluster-speed"></div>
+      </div>
+      <div class="caption">
+        full arc on three representative models: baseline &rarr; C opts &rarr; AVX2.
+	  </div>
+    </div>
+
+	<p>
+	  <strong>verdict:</strong> absolutely worth doing the fused matmul pass, free speedup and not too much work. the AVX2 is questionable, more worthwhile the bigger your model is but is caused all kinds of issues and for the smaller models I was targeting, only a small speedup.
+	</p>
+
+	<hr>
+
+    <h2>quantization</h2>
+
+    <p>
+      this part is pretty fun, we will consider the following five schemes: fp32, int8_row, int8_layer, int4_row, fp16.
+	</p>
+	<p>
+      we are quantizing after training here rather than during. 
+	  from my research this does introduce potential for greater cumulative errors and I think this is the issue that prevented the VNNI tests from working.
+    </p>
+
+    <div class="figure">
+      <div class="viz-quant-grid">
+        <div class="viz-quant-card">
+          <div class="viz-quant-name">fp32</div>
+          <div class="viz-quant-kv">size <strong>304 KB</strong></div>
+          <div class="viz-quant-kv">pos err <strong>0.335</strong></div>
+          <div class="viz-quant-kv">speed <strong>12.1&micro;s</strong></div>
+          <div class="viz-quant-verdict">default</div>
+        </div>
+        <div class="viz-quant-card win">
+          <div class="viz-quant-name">fp16</div>
+          <div class="viz-quant-kv">size <strong>153 KB</strong></div>
+          <div class="viz-quant-kv">pos err <strong>0.343</strong> <span class="col-good">(+0.008)</span></div>
+          <div class="viz-quant-kv">speed <strong>15.1&micro;s</strong></div>
+          <div class="viz-quant-verdict"><span class="col-good">best size/fidelity tradeoff</span></div>
+        </div>
+        <div class="viz-quant-card warn">
+          <div class="viz-quant-name">int8_row</div>
+          <div class="viz-quant-kv">size <strong>80 KB</strong></div>
+          <div class="viz-quant-kv">pos err <strong>0.391</strong> <span class="col-mid">(+0.056)</span></div>
+          <div class="viz-quant-kv">speed <strong>36.8&micro;s</strong></div>
+          <div class="viz-quant-verdict">good compression but we would need to implement QAT to see speed gains</div>
+        </div>
+        <div class="viz-quant-card">
+          <div class="viz-quant-name">int8_layer</div>
+          <div class="viz-quant-kv">size <strong>78 KB</strong></div>
+          <div class="viz-quant-kv">pos err <strong>0.564</strong> <span class="col-mid">(+0.229)</span></div>
+          <div class="viz-quant-kv">speed <strong>14.8&micro;s</strong></div>
+          <div class="viz-quant-verdict">probably too much drift to be generally useful</div>
+        </div>
+        <div class="viz-quant-card badbox">
+          <div class="viz-quant-name">int4_row</div>
+          <div class="viz-quant-kv">size <strong>42 KB</strong></div>
+          <div class="viz-quant-kv">pos err <strong>0.658</strong> <span class="col-bad">(+0.323)</span></div>
+          <div class="viz-quant-kv">speed <strong>339.5&micro;s</strong></div>
+          <div class="viz-quant-verdict"><span class="col-bad">tiny file but forces the CPU to unpack nibbles which is very slow</span></div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <h2>final comparisons</h2>
+
+    <p>
+      this is every model we trained. the rollout benchmark runs 50&nbsp;ep &times; 300 steps, post&ndash;AVX2 step times unless noted.
+	</p>
+	<p>
+      quantized versions are not shown.
+    </p>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>model</th>
+          <th>patch</th>
+          <th>MLP</th>
+          <th class="num">train</th>
+          <th class="num">pos</th>
+          <th class="num">gnd&nbsp;mm%</th>
+          <th class="num">tunnel</th>
+          <th class="num">&micro;s</th>
+          <th class="num">KB</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight"><td><code>analytic</code></td><td>&mdash;</td><td>&mdash;</td><td class="num">&mdash;</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0.2</td><td class="num">0</td></tr>
+
+        <tr><td colspan="9" style="color:#8a8680;font-size:11px;padding-top:0.75rem">9&sup3; full-context lineage</td></tr>
+        <tr><td><code>model.bin</code></td><td>9&sup3;</td><td>128&times;128</td><td class="num">&mdash;</td><td class="num">0.632</td><td class="num">14.8</td><td class="num">798</td><td class="num">15.5</td><td class="num">445</td></tr>
+        <tr><td><code>model_rollout</code></td><td>9&sup3;</td><td>256&times;256</td><td class="num">&mdash;</td><td class="num">0.576</td><td class="num">14.3</td><td class="num">586</td><td class="num">29.5</td><td class="num">1012</td></tr>
+        <tr><td><code>model_rollout_v2</code></td><td>9&sup3;</td><td>256&times;256</td><td class="num">&mdash;</td><td class="num">0.530</td><td class="num">13.2</td><td class="num">868</td><td class="num">31.4</td><td class="num">1012</td></tr>
+
+        <tr><td colspan="9" style="color:#8a8680;font-size:11px;padding-top:0.75rem">3&sup3; experiments (256&times;256 idle4 recipe family)</td></tr>
+        <tr class="highlight"><td><code>patch3/256_rollout8_idle4</code> &#9733;</td><td>3&sup3;</td><td>256&times;256</td><td class="num">13m</td><td class="num">0.335</td><td class="num">9.9</td><td class="num">231</td><td class="num">9.9</td><td class="num">304</td></tr>
+        <tr><td><code>patch3/512x256_rollout8</code></td><td>3&sup3;</td><td>512&times;256</td><td class="num">16m</td><td class="num">0.307</td><td class="num">13.5</td><td class="num">686</td><td class="num">16.5</td><td class="num">600</td></tr>
+        <tr><td><code>patch3/256_rollout8_30ep</code></td><td>3&sup3;</td><td>256&times;256</td><td class="num">11m</td><td class="num">0.414</td><td class="num">18.0</td><td class="num">613</td><td class="num">7.7</td><td class="num">304</td></tr>
+        <tr><td><code>patch3/64_rollout4_fast</code></td><td>3&sup3;</td><td>64&times;64</td><td class="num">5m</td><td class="num">0.425</td><td class="num">10.5</td><td class="num">191</td><td class="num">1.0</td><td class="num">28</td></tr>
+        <tr><td><code>patch3/128_rollout4_30ep</code></td><td>3&sup3;</td><td>128&times;128</td><td class="num">5m</td><td class="num">0.578</td><td class="num">22.7</td><td class="num">574</td><td class="num">2.8</td><td class="num">88</td></tr>
+        <tr><td><code>patch3/256_rollout12_25ep</code></td><td>3&sup3;</td><td>256&times;256</td><td class="num">32m</td><td class="num">0.553</td><td class="num">13.6</td><td class="num">617</td><td class="num">7.3</td><td class="num">304</td></tr>
+
+        <tr><td colspan="9" style="color:#8a8680;font-size:11px;padding-top:0.75rem">idle4 retrain &middot; 256&times;256 &middot; 30&nbsp;ep &times; 400 batches (today)</td></tr>
+        <tr><td><code>patch_sweep_retrain/patch_4</code></td><td>4&sup3;</td><td>256&times;256</td><td class="num">9m</td><td class="num">0.351</td><td class="num">10.9</td><td class="num">&mdash;</td><td class="num">9.9</td><td class="num">342</td></tr>
+        <tr><td><code>patch_sweep_retrain/patch_5</code></td><td>5&sup3;</td><td>256&times;256</td><td class="num">7m</td><td class="num">0.374</td><td class="num">11.3</td><td class="num">&mdash;</td><td class="num">10.3</td><td class="num">403</td></tr>
+        <tr><td><code>patch_sweep_retrain/patch_6</code></td><td>6&sup3;</td><td>256&times;256</td><td class="num">5m</td><td class="num">0.387</td><td class="num">11.9</td><td class="num">&mdash;</td><td class="num">12.0</td><td class="num">495</td></tr>
+
+        <tr><td colspan="9" style="color:#8a8680;font-size:11px;padding-top:0.75rem">patch sweep &middot; 128&times;128 &middot; 15&nbsp;ep (under-trained baseline)</td></tr>
+        <tr><td><code>patch_sweep/patch_2</code></td><td>2&sup3;</td><td>128&times;128</td><td class="num">~2m</td><td class="num">0.572</td><td class="num">11.9</td><td class="num">334</td><td class="num">1.9</td><td class="num">79</td></tr>
+        <tr><td><code>patch_sweep/patch_3</code></td><td>3&sup3;</td><td>128&times;128</td><td class="num">~2m</td><td class="num">1.915</td><td class="num">17.1</td><td class="num">235</td><td class="num">3.0</td><td class="num">88</td></tr>
+        <tr><td><code>patch_sweep/patch_4</code></td><td>4&sup3;</td><td>128&times;128</td><td class="num">~3m</td><td class="num">0.863</td><td class="num">17.5</td><td class="num">222</td><td class="num">2.6</td><td class="num">107</td></tr>
+        <tr><td><code>patch_sweep/patch_5</code></td><td>5&sup3;</td><td>128&times;128</td><td class="num">~3m</td><td class="num">0.810</td><td class="num">12.0</td><td class="num">170</td><td class="num">4.1</td><td class="num">138</td></tr>
+        <tr><td><code>patch_sweep/patch_6</code></td><td>6&sup3;</td><td>128&times;128</td><td class="num">~4m</td><td class="num">1.527</td><td class="num">13.7</td><td class="num">159</td><td class="num">4.5</td><td class="num">184</td></tr>
+        <tr><td><code>patch_sweep/patch_7</code></td><td>7&sup3;</td><td>128&times;128</td><td class="num">~6m</td><td class="num">1.028</td><td class="num">32.2</td><td class="num">384</td><td class="num">7.1</td><td class="num">249</td></tr>
+        <tr><td><code>patch_sweep/patch_8</code></td><td>8&sup3;</td><td>128&times;128</td><td class="num">~8m</td><td class="num">1.881</td><td class="num">32.2</td><td class="num">214</td><td class="num">9.5</td><td class="num">335</td></tr>
+        <tr><td><code>patch_sweep/patch_9</code></td><td>9&sup3;</td><td>128&times;128</td><td class="num">~10m</td><td class="num">0.847</td><td class="num">18.1</td><td class="num">194</td><td class="num">16.2</td><td class="num">445</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="figure">
+      <div class="chart-wrap" style="padding-top:0.5rem;padding-bottom:0.25rem">
+        <div class="chart-title">all models &middot; speed vs accuracy &middot; color = generation</div>
+        <svg id="chart-final-scatter" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" fill="none" role="img" aria-label="Scatter plot of all models: step time versus rollout position error, grouped by generation" style="margin-bottom:0.5rem; margin-top:0.5rem; width:100%; height:auto; display:block"></svg>
+      </div>
+    </div>
+
+    <p>
+	  <strong>idle4 anchor</strong> is probably the sweet spot ~10&nbsp;&micro;s, 0.335 pos, 304&nbsp;KB.
+	</p>
+    <p>
+      <strong>4&sup3;&ndash;6&sup3; idle4 retrains</strong> cluster right next to it (0.35&ndash;0.39 pos at similar speed).</p>
+    <p>
+      <strong>64x64</strong> is our observed speed floor (~1&nbsp;&micro;s) with high accuracy still.
+	</p>
+    <p>
+	  <strong>512&times;256</strong> is the accuracy ceiling on 3&sup3;.
+	</p>
+    <p>
+	  <strong>9&sup3; v2</strong> loses on both axes we care about.
+    </p>
+    <p>
+	  <strong>sweep models</strong> are noise, some score great, some bad, none actually useful.
+    </p>
+
+	<hr>
+
+    <h2>building with cursor</h2>
+
+    <p>
+      I wrote a single <code>spec.md</code> and drove ~16 rough phases through Cursor agents.
+    </p>
+    <p>
+      agents are awesome and they push the speed of development unreasonably fast, but you need to stay on top of them. Cursor tried to cheat on the benchmarks, implement weird overrides, train models that made no sense, and otherwise just screw around.
+    </p>
+    <p>
+	  the biggest benefit is the ability to come up with a hypothesis and tell cursor to go test it with N subagents. I can also ask for suggestions or benchmarking scripts or really anything I want and its basically done. I also would not have been able to generate all of the cute charts and graphs you see in this post without AI, too tedious for me...
+    </p>
+    <p>
+	  keeping your agents on track and doing what you want is a skill, especially when you manage lots of them at a time. you need to write intelligent prompts as well as repo level rules to enforce your standards.
+    </p>
+    <p>
+	  if I knew nothing about machine learning or physics engines, I dont think I could have directed any AI model through this thing. Taste and actual knowhow are still important skills in the age of AI and those who have those things and know how to intelligently use tools like Cursor or Claude Code will own the day.
+    </p>
+
+    <h2>whats next</h2>
+    <p>
+	  I loved this project! Im probably not done with it yet and I think different architectures or better training could push the loss a lot lower. 
+    </p>
+    <p>
+	  to our initial question: "can AI completely replace a physics engine" I say yes. I do not say that it will be as performant or robust in all edge cases but it is not impossible. suppose a company that has millions of hours of training data in their game engine, there is a ton of potential there. (server sized GPU could do inference for an entire playerbase in batches. good enough and avoids expensive server side CPU physics, you could train an even cheaper classifier model to just detect people exploiting movement ... food for thought)
+	</p>
+    <p>
+	  my neural physics engine is now definitely playable but also very quirky, sometimes you can spam jump forever or phase through the map, but on average, we can move and interact with the voxel world semi convincingly. 
+    </p>
+    <p>
+	  the idea that neural networks are universal function approximators is very interesting. for all tasks, including this one, there <i>theoretically</i> is a network that can perfectly approximate the algorithm. building a training pipeline is a whole other question but as shown here, it can be done.
+    </p>
+    <p>
+	  a project Ive had in mind forever is to simulate a little terrarium of some sort and slowly swap out algorithmic systems for neural ones. imagine a mini food chain that follows rules but creature by creature, I swap in a tiny neural network. This all may even build to unique little world models that simulate every interaction in the terrarium one forward pass at a time. very cool!
+	</p>
+
+	<div class="figure figure-half">
+      <img src="https://ryanhub.org/images/v5.gif" alt="Gameplay clip">
+    </div>
+
+    <p>
+	  if you found this interesting or have some idea about it you want to share, please email me @ ralport2005@gmail.com I love getting emails.
+	</p>
+
+    <p>
+	  find the repo <a href="https://github.com/RyanA005/voxel-game">here</a>
+	</p>
+
+    <div class="footer">
+	  <h3>thanks for reading!</h3>
+      <a class="back" href="https://ryanhub.org/"><- back to ryanhub</a>
+    </div>
+  </article>
+
+  <script>
+    const C = {
+      grid: '#2e2e2e', text: '#8a8680', fg: '#e8e4dc', analytic: '#6ee7a8'
+    };
+
+    function svgEl(tag, attrs, parent) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      if (parent) parent.appendChild(el);
+      return el;
+    }
+
+    function linearPct(v, max) {
+      return Math.max(0.8, Math.min(100, (v / max) * 100));
+    }
+
+    function makeVizRow(name, display, cls, pct, lower) {
+      const row = document.createElement('div');
+      row.className = 'viz-bar-row' + (lower ? ' lower' : '');
+      row.innerHTML = `
+        <div class="viz-bar-name">${name}</div>
+        <div class="viz-bar-track"><div class="viz-bar-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="viz-bar-val">${display}</div>`;
+      return row;
+    }
+
+    const patchErr = [{ title: 'patch size sweep', items: [
+      { name: '2³', val: 0.392, cls: 'good' }, { name: '3³', val: 1.313, cls: 'bad' },
+      { name: '4³', val: 0.538, cls: 'good' }, { name: '5³', val: 0.627, cls: 'mid' },
+      { name: '6³', val: 1.208, cls: 'bad' }, { name: '7³', val: 0.690, cls: 'mid' },
+      { name: '8³', val: 1.686, cls: 'bad' }, { name: '9³', val: 0.675, cls: 'mid' }
+    ]}];
+
+    const patchSpeed = [{ title: 'patch size sweep', items: [
+      { name: '2³', val: 8.8, cls: 'good' }, { name: '3³', val: 9.7, cls: 'good' },
+      { name: '4³', val: 12.5, cls: 'good' }, { name: '5³', val: 15.1, cls: 'mid' },
+      { name: '6³', val: 22.5, cls: 'mid' }, { name: '7³', val: 38.6, cls: 'mid' },
+      { name: '8³', val: 50.1, cls: 'bad' }, { name: '9³', val: 67.4, cls: 'bad' }
+    ]}];
+
+    function makeSimplePatchGroup(containerId, groups, max, suffix) {
+      const root = document.getElementById(containerId);
+      if (!root) return;
+      groups.forEach(g => {
+        const wrap = document.createElement('div');
+        wrap.className = 'viz-bar-group';
+        const title = document.createElement('div');
+        title.className = 'viz-group-title';
+        title.textContent = g.title;
+        wrap.appendChild(title);
+        g.items.forEach(item => {
+          const pct = linearPct(item.val, max);
+          const display = item.val.toFixed(3).replace(/\.000$/, '') + suffix;
+          wrap.appendChild(makeVizRow(item.name, display, item.cls, pct, true));
+        });
+        root.appendChild(wrap);
+      });
+    }
+
+    makeSimplePatchGroup('viz-patch-err', patchErr, 1.8, '');
+    makeSimplePatchGroup('viz-patch-speed', patchSpeed, 70, 'µs');
+
+    const clusterData = [
+      { title: '3³ anchor', max: 80, bars: [
+        { label: 'baseline', val: 72.0, cls: 'mid' },
+        { label: 'C opts', val: 12.1, cls: 'good' },
+        { label: 'AVX2', val: 9.6, cls: 'blue' }
+      ]},
+      { title: '3³ speed', max: 8, bars: [
+        { label: 'baseline', val: 5.7, cls: 'mid' },
+        { label: 'C opts', val: 1.9, cls: 'good' },
+        { label: 'AVX2', val: 1.2, cls: 'blue' }
+      ]},
+      { title: '9³ v2', max: 280, bars: [
+        { label: 'baseline', val: 268.0, cls: 'mid' },
+        { label: 'C opts', val: 54.9, cls: 'good' },
+        { label: 'AVX2', val: 33.6, cls: 'blue' }
+      ]}
+    ];
+    const clusterRoot = document.getElementById('viz-cluster-speed');
+    if (clusterRoot) {
+      clusterData.forEach(g => {
+        const group = document.createElement('div');
+        group.className = 'viz-cluster-group';
+        group.innerHTML = `<div class="viz-cluster-title">${g.title}</div>`;
+        const bars = document.createElement('div');
+        bars.className = 'viz-cluster-bars';
+        g.bars.forEach(b => {
+          const wrap = document.createElement('div');
+          wrap.className = 'viz-cluster-bar-wrap';
+          const height = Math.max(3, (b.val / g.max) * 160);
+          wrap.innerHTML = `
+            <div class="viz-cluster-val">${b.val >= 10 ? Math.round(b.val) : b.val.toFixed(1)}µs</div>
+            <div class="viz-cluster-bar ${b.cls}" style="height:${height}px"></div>
+            <div class="viz-cluster-lbl">${b.label}</div>`;
+          bars.appendChild(wrap);
+        });
+        group.appendChild(bars);
+        clusterRoot.appendChild(group);
+      });
+    }
+
+    const finalGroups = {
+      analytic: { fill: '#e8e4dc', stroke: '#ffffff', label: 'analytic oracle' },
+      nine: { fill: '#4a7fd4', stroke: '#6a9fe8', label: '9³ full-context' },
+      patch3: { fill: '#6ee7a8', stroke: '#8ef0bc', label: '3³ experiments' },
+      retrain: { fill: '#f4a261', stroke: '#ffb07a', label: 'idle4 retrain (4³–6³)' },
+      sweep: { fill: '#8a8680', stroke: '#b0aca4', label: 'patch sweep 128×128' }
+    };
+
+    const finalModels = [
+      { g: 'analytic', name: 'analytic', us: 0.2, pos: 0, star: false },
+      { g: 'nine', name: 'model.bin', us: 15.5, pos: 0.632 },
+      { g: 'nine', name: 'model_rollout', us: 29.5, pos: 0.576 },
+      { g: 'nine', name: 'model_rollout_v2', us: 31.4, pos: 0.530 },
+      { g: 'patch3', name: '256_rollout8_idle4 ★', us: 9.9, pos: 0.335, star: true },
+      { g: 'patch3', name: '512x256_rollout8', us: 16.5, pos: 0.307 },
+      { g: 'patch3', name: '256_rollout8_30ep', us: 7.7, pos: 0.414 },
+      { g: 'patch3', name: '64_rollout4_fast', us: 1.0, pos: 0.425 },
+      { g: 'patch3', name: '128_rollout4_30ep', us: 2.8, pos: 0.578 },
+      { g: 'patch3', name: '256_rollout12_25ep', us: 7.3, pos: 0.553 },
+      { g: 'retrain', name: 'retrain patch_4', us: 9.9, pos: 0.351 },
+      { g: 'retrain', name: 'retrain patch_5', us: 10.3, pos: 0.374 },
+      { g: 'retrain', name: 'retrain patch_6', us: 12.0, pos: 0.387 },
+      { g: 'sweep', name: 'sweep patch_2', us: 1.9, pos: 0.572 },
+      { g: 'sweep', name: 'sweep patch_3', us: 3.0, pos: 1.915 },
+      { g: 'sweep', name: 'sweep patch_4', us: 2.6, pos: 0.863 },
+      { g: 'sweep', name: 'sweep patch_5', us: 4.1, pos: 0.810 },
+      { g: 'sweep', name: 'sweep patch_6', us: 4.5, pos: 1.527 },
+      { g: 'sweep', name: 'sweep patch_7', us: 7.1, pos: 1.028 },
+      { g: 'sweep', name: 'sweep patch_8', us: 9.5, pos: 1.881 },
+      { g: 'sweep', name: 'sweep patch_9', us: 16.2, pos: 0.847 }
+    ];
+
+    function drawFinalScatter(svg) {
+      const W = 680, H = 360;
+      const pad = { l: 58, r: 24, t: 44, b: 56 };
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+      const maxX = 32;
+      const maxY = 2.0;
+
+      svgEl('rect', { width: W, height: H, fill: '#1a1a1a' }, svg);
+      svgEl('rect', { x: 0.5, y: 0.5, width: W - 1, height: H - 1, stroke: '#2e2e2e' }, svg);
+
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + plotH - (i / 4) * plotH;
+        svgEl('line', { x1: pad.l, y1: y, x2: W - pad.r, y2: y, stroke: C.grid, 'stroke-width': 1 }, svg);
+        svgEl('text', { x: pad.l - 6, y: y + 3, fill: C.text, 'text-anchor': 'end', 'font-size': 8, 'font-family': 'monospace' }, svg)
+          .textContent = (maxY * i / 4).toFixed(1).replace(/\.0$/, '');
+      }
+      for (let i = 0; i <= 4; i++) {
+        const x = pad.l + (i / 4) * plotW;
+        svgEl('line', { x1: x, y1: pad.t, x2: x, y2: pad.t + plotH, stroke: '#2a2a2a', 'stroke-width': 1 }, svg);
+        svgEl('text', { x, y: H - pad.b + 14, fill: C.text, 'text-anchor': 'middle', 'font-size': 8, 'font-family': 'monospace' }, svg)
+          .textContent = Math.round(maxX * i / 4);
+      }
+
+      svgEl('line', { x1: pad.l, y1: pad.t + plotH, x2: W - pad.r, y2: pad.t + plotH, stroke: '#3a3a3a', 'stroke-width': 1 }, svg);
+      svgEl('line', { x1: pad.l, y1: pad.t, x2: pad.l, y2: pad.t + plotH, stroke: '#3a3a3a', 'stroke-width': 1 }, svg);
+
+      svgEl('text', { x: pad.l + plotW / 2, y: H - 8, fill: C.text, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'monospace' }, svg)
+        .textContent = 'step time (µs) → lower is faster';
+      const yLabel = svgEl('text', { x: 16, y: pad.t + plotH / 2, fill: C.text, 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'monospace', transform: `rotate(-90 16 ${pad.t + plotH / 2})` }, svg);
+      yLabel.textContent = 'rollout pos → lower is better';
+
+      let lx = pad.l, ly = 10;
+      Object.values(finalGroups).forEach(gr => {
+        svgEl('circle', { cx: lx + 4, cy: ly + 4, r: 4, fill: gr.fill, stroke: gr.stroke, 'stroke-width': 1 }, svg);
+        svgEl('text', { x: lx + 12, y: ly + 7, fill: C.text, 'font-size': 8, 'font-family': 'monospace' }, svg).textContent = gr.label;
+        lx += gr.label.length * 5.2 + 24;
+        if (lx > W - 120) { lx = pad.l; ly += 14; }
+      });
+
+      finalModels.forEach(m => {
+        const gr = finalGroups[m.g];
+        const cx = pad.l + (m.us / maxX) * plotW;
+        const cy = pad.t + plotH - (m.pos / maxY) * plotH;
+        const r = m.star ? 6 : 4.5;
+        const dot = svgEl('circle', {
+          cx, cy, r,
+          fill: gr.fill,
+          'fill-opacity': 0.85,
+          stroke: gr.stroke,
+          'stroke-width': m.star ? 1.8 : 1.2
+        }, svg);
+        const title = svgEl('title', {}, dot);
+        title.textContent = `${m.name} · ${m.pos.toFixed(3)} pos · ${m.us} µs`;
+      });
+    }
+
+    const finalSvg = document.getElementById('chart-final-scatter');
+    if (finalSvg) drawFinalScatter(finalSvg);
+  </script>
+</body>
+</html>

@@ -89,7 +89,7 @@ def main():
         print(
             f"| {r['patch']}³ | {r['input_dim']} | {r['rollout_pos']:.4f} | {r['neural_us']:.1f} |"
         )
-    print("\nCopy results into progress-log.md Phase 8.")
+    print("\nCopy results into docs/progress-log.md Phase 8.")
 
 
 if __name__ == "__main__":

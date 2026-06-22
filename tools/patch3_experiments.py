@@ -127,7 +127,7 @@ def main():
             f"{r['neural_us']:.1f} |{mark}"
         )
     print(f"\nBest: {best['name']} ({best['rollout_pos']:.4f})")
-    print("Copy results into progress-log.md Phase 10.")
+    print("Copy results into docs/progress-log.md Phase 10.")
 
 
 if __name__ == "__main__":
